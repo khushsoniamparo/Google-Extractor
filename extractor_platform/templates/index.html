@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apify-Style Extractor</title>
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        :root {
+            /* Modern, sophisticated color palette */
+            --bg-color: #f4f6f8;
+            /* Soft grayish-blue background */
+            --sidebar-bg: #ffffff;
+            --topbar-bg: #ffffff;
+            --card-bg: #ffffff;
+
+            --text-main: #0f172a;
+            /* Slate 900 */
+            --text-muted: #64748b;
+            /* Slate 500 */
+            --text-light: #94a3b8;
+            /* Slate 400 */
+
+            --accent: #2563eb;
+            /* Blue 600 */
+            --accent-hover: #1d4ed8;
+            /* Blue 700 */
+            --accent-light: #eff6ff;
+
+            --primary-btn: #10b981;
+            /* Emerald 500 */
+            --primary-btn-hover: #059669;
+            /* Emerald 600 */
+
+            --success: #059669;
+            --success-bg: #d1fae5;
+            --warning: #b45309;
+            --warning-bg: #fef3c7;
+            --danger: #dc2626;
+            --danger-bg: #fee2e2;
+
+            --border: #e2e8f0;
+            /* Slate 200 */
+            --border-light: #f1f5f9;
+
+            --sidebar-width: 260px;
+
+            /* Shadows for depth */
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --radius-xl: 16px;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            font-size: 14px;
+        }
+
+        /* Views */
+        .view {
+            display: none;
+            width: 100%;
+            height: 100%;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(4px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .view.active {
+            display: flex;
+        }
+
+        /* --- Auth View --- */
+        #auth-view {
+            justify-content: center;
+            align-items: center;
+            background-color: var(--bg-color);
+            background-image: radial-gradient(#e2e8f0 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+
+        .auth-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xl);
+            padding: 40px;
+            width: 100%;
+            max-width: 440px;
+            box-shadow: var(--shadow-lg);
+        }
+
+        /* --- Sidebar & Layout --- */
+        .sidebar {
+            width: 88px;
+            background-color: #0f172a;
+            border-radius: var(--radius-xl);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-shrink: 0;
+            z-index: 10;
+            margin: 16px 0 16px 16px;
+            padding: 24px 0;
+            box-shadow: var(--shadow-lg);
+            border: none;
+        }
+
+        .logo-area {
+            height: auto;
+            border-bottom: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            margin-bottom: 40px;
+        }
+
+        .logo-area svg {
+            color: white;
+            width: 32px;
+            height: 32px;
+        }
+
+        .nav-menu {
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            width: 100%;
+            align-items: center;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            border-radius: 14px;
+            color: #94a3b8;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            width: 48px;
+            height: 48px;
+        }
+
+        .nav-item span {
+            display: none;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .nav-item.active {
+            background-color: white;
+            color: #0f172a;
+        }
+
+        .nav-item svg {
+            width: 24px;
+            height: 24px;
+            opacity: 1;
+        }
+
+        .nav-item.active svg {
+            opacity: 1;
+        }
+
+        .main-wrapper {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            padding: 16px 0;
+        }
+
+        /* --- Topbar --- */
+        .topbar {
+            height: 64px;
+            background-color: transparent;
+            border-bottom: none;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 40px;
+            flex-shrink: 0;
+            z-index: 5;
+            box-shadow: none;
+        }
+
+        .topbar input.search-bar {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            padding: 10px 20px 10px 48px;
+            width: 320px;
+            font-size: 0.95rem;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%2394a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>');
+            background-repeat: no-repeat;
+            background-position: 16px center;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .breadcrumbs {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .breadcrumbs .sep {
+            color: var(--border);
+        }
+
+        .breadcrumbs .current {
+            color: var(--text-main);
+            font-weight: 600;
+        }
+
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        /* --- Content Area --- */
+        .content-area {
+            flex: 1;
+            padding: 40px;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .content-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 32px;
+        }
+
+        .content-header h1 {
+            font-size: 1.875rem;
+            font-weight: 700;
+            margin: 0 0 8px 0;
+            letter-spacing: -0.025em;
+            color: var(--text-main);
+        }
+
+        .content-header p {
+            color: var(--text-muted);
+            margin: 0;
+            font-size: 0.95rem;
+        }
+
+        /* --- Cards and Forms --- */
+        .panel {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            margin-bottom: 24px;
+            overflow: hidden;
+            transition: box-shadow 0.2s ease;
+        }
+
+        .panel:hover {
+            box-shadow: var(--shadow);
+        }
+
+        .panel-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border-light);
+            background-color: #fafafa;
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--text-main);
+        }
+
+        .panel-body {
+            padding: 24px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 2fr 2fr 1fr;
+            gap: 24px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-group.full {
+            grid-column: span 3;
+        }
+
+        label {
+            font-size: 0.85rem;
+            color: var(--text-main);
+            font-weight: 600;
+        }
+
+        input {
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 12px 14px;
+            font-size: 0.95rem;
+            color: var(--text-main);
+            background-color: #ffffff;
+            transition: all 0.2s;
+            box-shadow: var(--shadow-sm);
+            font-family: inherit;
+        }
+
+        input::placeholder {
+            color: #94a3b8;
+        }
+
+        input:hover {
+            border-color: #cbd5e1;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15), var(--shadow-sm);
+        }
+
+        /* --- Buttons --- */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            border: none;
+            border-radius: var(--radius-md);
+            padding: 10px 18px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            text-decoration: none;
+            font-family: inherit;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primary {
+            background-color: var(--primary-btn);
+            color: white;
+            box-shadow: 0 1px 2px rgba(16, 185, 129, 0.2);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-btn-hover);
+            box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-secondary {
+            background-color: white;
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--bg-color);
+            border-color: #cbd5e1;
+        }
+
+        .btn-blue {
+            background-color: var(--accent);
+            color: white;
+            box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2);
+        }
+
+        .btn-blue:hover {
+            background-color: var(--accent-hover);
+            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);
+        }
+
+        /* --- Tables --- */
+        .table-wrapper {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            text-align: left;
+            table-layout: fixed;
+        }
+
+        th {
+            background-color: #f8fafc;
+            padding: 16px 24px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+        }
+
+        td {
+            padding: 20px 24px;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-light);
+            vertical-align: top;
+            color: var(--text-main);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background-color: #f8fafc;
+        }
+
+        /* --- Badges --- */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            white-space: nowrap;
+        }
+
+        .status-badge.SUCCEEDED {
+            background: var(--success-bg);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
+        .status-badge.FAILED {
+            background: var(--danger-bg);
+            color: var(--danger);
+            border: 1px solid rgba(220, 38, 38, 0.2);
+        }
+
+        .status-badge.RUNNING {
+            background: var(--warning-bg);
+            color: var(--warning);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+        }
+
+        .status-badge.READY {
+            background: var(--accent-light);
+            color: var(--accent);
+            border: 1px solid rgba(37, 99, 235, 0.2);
+        }
+
+        .run-id {
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            color: var(--text-muted);
+            background: var(--bg-color);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Auth View -->
+    <div id="auth-view" class="view">
+        <div class="auth-card">
+            <h2 id="auth-title" style="margin-bottom: 24px; text-align: center;">Log in to Console</h2>
+            <form id="auth-form">
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label>Username</label>
+                    <input type="text" id="username" required>
+                </div>
+                <div class="form-group" style="margin-bottom: 24px;">
+                    <label>Password</label>
+                    <input type="password" id="password" required>
+                </div>
+                <button type="submit" class="btn btn-blue" id="auth-btn" style="width: 100%;">Log in</button>
+                <div id="auth-error" style="color:red; font-size: 0.8rem; margin-top: 10px; display:none;"></div>
+            </form>
+            <div style="text-align: center; margin-top: 16px; font-size: 0.85rem;">
+                <span id="auth-prompt" style="color:var(--text-muted)">Don't have an account?</span>
+                <a href="#" id="auth-switch-btn"
+                    style="color:var(--accent); text-decoration:none; font-weight:500;">Sign up</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard View -->
+    <div id="dashboard-view" class="view">
+        <div class="sidebar">
+            <div class="logo-area">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="12 2 2 22 22 22"></polygon>
+                </svg>
+            </div>
+            <div class="nav-menu">
+                <a class="nav-item active" id="nav-runs" title="Runs">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path
+                            d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a5.5 5.5 0 0 0-7.8 7.8l-1.6 1.6a1 1 0 0 0 1.4 1.4l1.6-1.6a5.5 5.5 0 0 0 7.8-7.8l1.6-1.6a1 1 0 0 0-1.4-1.4l-3.2-3.2z">
+                        </path>
+                    </svg>
+                    <span>Runs</span>
+                </a>
+                <a class="nav-item" title="Actors">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    </svg>
+                    <span>Actors</span>
+                </a>
+                <a class="nav-item" title="Schedules">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    <span>Schedules</span>
+                </a>
+                <a class="nav-item" title="Webhooks">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 2v6h-6"></path>
+                        <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
+                        <path d="M3 22v-6h6"></path>
+                        <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+                    </svg>
+                    <span>Webhooks</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="main-wrapper">
+            <div class="topbar">
+                <div class="breadcrumbs" id="top-breadcrumbs" style="opacity:0; visibility:hidden;">
+                    <span>Google Maps Extractor</span>
+                </div>
+                <div>
+                    <input type="text" class="search-bar" placeholder="Search..." disabled>
+                </div>
+                <div class="user-menu">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <button
+                            style="border: none; background: transparent; padding: 6px 12px; font-size: 0.9rem; font-weight: 500; color: var(--text-muted); cursor: pointer;"
+                            id="logout-btn" onmouseover="this.style.color='var(--text-main)'"
+                            onmouseout="this.style.color='var(--text-muted)'">Sign out</button>
+                        <div
+                            style="width:36px; height:36px; background:var(--accent); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:600; font-size:1rem; box-shadow:var(--shadow-sm);">
+                            A</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Runs ListView -->
+            <div class="content-area" id="runs-list-content">
+                <div class="content-header">
+                    <div>
+                        <h1>Runs</h1>
+                        <p>View and manage your recently started extractions.</p>
+                    </div>
+                </div>
+
+                <div class="panel" style="background: linear-gradient(135deg, #f5f3ff 0%, #e0e7ff 100%); border: none;">
+                    <div class="panel-header"
+                        style="background: transparent; border-bottom: none; padding: 32px 32px 16px 32px; display:flex; justify-content:space-between; align-items:flex-end;">
+                        <div>
+                            <div style="font-size: 1.4rem; font-weight: 700; color: #1e1b4b; margin-bottom: 6px;">Add
+                                new search</div>
+                            <div style="font-size: 0.95rem; color: #4338ca;">Fill out the form to start extraction</div>
+                        </div>
+                        <div
+                            style="background: rgba(255,255,255,0.6); padding: 4px; border-radius: 8px; display: flex; box-shadow: var(--shadow-sm); border: 1px solid rgba(255,255,255,0.8);">
+                            <button type="button" id="mode-single"
+                                style="border:none; background:white; padding:8px 16px; border-radius:6px; font-weight:600; font-size:0.85rem; cursor:pointer; box-shadow:var(--shadow-sm); color:#1e1b4b;"
+                                onclick="setSearchMode('single')">Single Keyword</button>
+                            <button type="button" id="mode-multi"
+                                style="border:none; background:transparent; padding:8px 16px; border-radius:6px; font-weight:600; font-size:0.85rem; cursor:pointer; color:#4338ca;"
+                                onclick="setSearchMode('multi')">Bulk Search</button>
+                        </div>
+                    </div>
+                    <div class="panel-body" style="padding: 0 32px 32px 32px;">
+                        <form id="search-form">
+                            <div class="form-grid"
+                                style="background: white; padding: 12px; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); display: flex; flex-direction: row; align-items: center; gap: 16px;">
+                                <div class="form-group" style="flex: 1.5; margin:0;">
+                                    <input type="text" id="keyword" placeholder="Enter single tracking keyword..."
+                                        required
+                                        style="border:none; box-shadow:none; padding:12px; background:transparent; font-size:1rem; width:100%;">
+                                </div>
+                                <div style="width: 1px; height: 32px; background: var(--border);"></div>
+                                <div class="form-group" style="flex: 1.5; margin:0;">
+                                    <input type="text" id="location" placeholder="Location (e.g. New York, NY)" required
+                                        style="border:none; box-shadow:none; padding:12px; background:transparent; font-size:1rem; width:100%;">
+                                </div>
+                                <div style="width: 1px; height: 32px; background: var(--border);"></div>
+                                <div class="form-group"
+                                    style="flex: 1; margin:0; display:flex; align-items:center; flex-direction:row; gap:12px;">
+                                    <span
+                                        style="font-size:0.85rem; font-weight:600; color:var(--text-muted); text-transform:uppercase;">Grid</span>
+                                    <input type="number" id="grid_size" placeholder="2-25" min="2" max="25" value="10"
+                                        required
+                                        style="border:1px solid var(--border); box-shadow:var(--shadow-sm); padding:10px; border-radius:8px; background:white; font-size:0.95rem; width:80px;">
+                                </div>
+                                <button type="submit" id="start-btn"
+                                    style="background:#1e1b4b; color:white; border:none; padding:12px 18px; border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow: 0 2px 4px rgba(30, 27, 75, 0.2); transition:all 0.2s;">
+                                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+                                        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                                        <polyline points="12 5 19 12 12 19"></polyline>
+                                    </svg>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="width: 120px;">Status</th>
+                                    <th style="width: 180px;">Started At</th>
+                                    <th style="width: 120px;">Dataset</th>
+                                    <th style="width: 250px;">Details</th>
+                                    <th>Progress</th>
+                                </tr>
+                            </thead>
+                            <tbody id="runs-table-body">
+                                <!-- Dynamic runs -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Run Details / Map View -->
+            <div class="content-area" id="run-details-content" style="display: none; padding-top: 24px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                    <button class="btn btn-secondary"
+                        style="padding: 8px 12px; border-radius: 50%; width: 40px; height: 40px;"
+                        id="back-to-runs-btn">←</button>
+                    <!-- Title gets set in JS -->
+                </div>
+
+                <div style="display: flex; gap: 24px; height: calc(100vh - 180px); flex-direction: row-reverse;">
+                    <!-- Map Column -->
+                    <div style="flex: 1; display: flex; flex-direction: column; position: relative;">
+                        <div id="results-map"
+                            style="width: 100%; height: 100%; border-radius: var(--radius-xl); box-shadow: var(--shadow-sm); z-index: 1;">
+                        </div>
+                    </div>
+
+                    <!-- Details Column -->
+                    <div
+                        style="flex: 0 0 420px; display: flex; flex-direction: column; gap: 24px; overflow-y: auto; padding-right: 8px;">
+
+                        <!-- Details Hero Card -->
+                        <div
+                            style="background: linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 100%); border-radius: var(--radius-xl); padding: 24px; box-shadow: var(--shadow-md);">
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
+                                <div style="flex:1; min-width:0; padding-right:12px;">
+                                    <div
+                                        style="font-size: 0.8rem; font-weight: 600; color: #4f46e5; text-transform: uppercase; margin-bottom: 4px;">
+                                        Dataset</div>
+                                    <div style="font-size: 1.25rem; font-weight: 700; color: #1e1b4b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
+                                        id="card-keyword-title">Keyword</div>
+                                </div>
+                                <div
+                                    style="background: white; padding: 4px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; color: var(--success); display: flex; align-items: center; gap: 6px; flex-shrink:0;">
+                                    <span
+                                        style="width:6px; height:6px; border-radius:50%; background:var(--success);"></span>
+                                    Completed
+                                </div>
+                            </div>
+
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                                <div style="flex:1; min-width:0; padding-right:12px;">
+                                    <div style="font-size: 0.8rem; color: #6366f1; margin-bottom: 2px;">Location</div>
+                                    <div style="font-weight: 600; color: #312e81; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
+                                        id="card-location">New York</div>
+                                </div>
+                                <div style="text-align: right; flex-shrink:0;">
+                                    <div style="font-size: 0.8rem; color: #6366f1; margin-bottom: 2px;">Items</div>
+                                    <div style="font-weight: 600; color: #312e81;" id="card-count">0</div>
+                                </div>
+                            </div>
+
+                            <div style="display: flex; gap: 12px;">
+                                <button class="btn btn-secondary"
+                                    style="flex:1; background: white; border: none; color: #1e1b4b; box-shadow:0 1px 2px rgba(0,0,0,0.05);"
+                                    id="dl-csv-btn">Export CSV</button>
+                                <button class="btn" style="flex:1; background: #1e1b4b; color: white;"
+                                    id="dl-json-btn">Export JSON</button>
+                            </div>
+                        </div>
+
+                        <!-- Results List -->
+                        <div id="results-list-container" style="display: flex; flex-direction: column; gap: 12px;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // State
+        let token = localStorage.getItem('access_token');
+        let refresh = localStorage.getItem('refresh_token');
+        let isLoginMode = true;
+        let activeJobsInterval = null;
+
+        // Elements
+        const authView = document.getElementById('auth-view');
+        const dashView = document.getElementById('dashboard-view');
+        const runsContent = document.getElementById('runs-list-content');
+        const detailsContent = document.getElementById('run-details-content');
+
+        const API = '/api';
+        let currentMap = null;
+        let currentDetailJobId = null;
+
+        if (token) {
+            showDashboard();
+        } else {
+            showAuth();
+        }
+
+        // --- Navigation ---
+        document.getElementById('back-to-runs-btn').addEventListener('click', () => {
+            detailsContent.style.display = 'none';
+            runsContent.style.display = 'block';
+            document.getElementById('top-breadcrumbs').innerHTML = `
+                <span>Google Maps Extractor</span>
+                <span class="sep">/</span>
+                <span class="current">Runs</span>
+             `;
+        });
+
+        // --- Auth Logic ---
+        document.getElementById('auth-switch-btn').addEventListener('click', (e) => {
+            e.preventDefault();
+            isLoginMode = !isLoginMode;
+            document.getElementById('auth-title').innerText = isLoginMode ? 'Log in to Console' : 'Sign up to Console';
+            document.getElementById('auth-btn').innerText = isLoginMode ? 'Log in' : 'Sign up';
+            document.getElementById('auth-prompt').innerText = isLoginMode ? "Don't have an account?" : "Already have an account?";
+            document.getElementById('auth-switch-btn').innerText = isLoginMode ? "Sign up" : "Log in";
+            document.getElementById('auth-error').style.display = 'none';
+        });
+
+        document.getElementById('auth-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const u = document.getElementById('username').value;
+            const p = document.getElementById('password').value;
+            const errEl = document.getElementById('auth-error');
+
+            try {
+                const endpoint = isLoginMode ? '/token/' : '/register/';
+                const res = await fetch(API + endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: u, password: p })
+                });
+
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || data.detail || 'Authentication failed');
+
+                localStorage.setItem('access_token', data.access);
+                localStorage.setItem('refresh_token', data.refresh);
+                token = data.access;
+
+                showDashboard();
+            } catch (err) {
+                errEl.innerText = err.message;
+                errEl.style.display = 'block';
+            }
+        });
+
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            localStorage.clear();
+            token = null;
+            if (activeJobsInterval) clearInterval(activeJobsInterval);
+            showAuth();
+        });
+
+        async function fetchAPI(endpoint, options = {}) {
+            if (!options.headers) options.headers = {};
+            options.headers['Authorization'] = `Bearer ${token}`;
+            let res = await fetch(API + endpoint, options);
+            if (res.status === 401) {
+                localStorage.clear(); token = null; showAuth();
+                throw new Error("Session expired");
+            }
+            return res;
+        }
+
+        function showAuth() {
+            dashView.classList.remove('active');
+            authView.classList.add('active');
+            if (activeJobsInterval) clearInterval(activeJobsInterval);
+        }
+
+        function showDashboard() {
+            authView.classList.remove('active');
+            dashView.classList.add('active');
+            runsContent.style.display = 'block';
+            detailsContent.style.display = 'none';
+            fetchJobs();
+            if (activeJobsInterval) clearInterval(activeJobsInterval);
+            activeJobsInterval = setInterval(fetchJobs, 3000);
+        }
+
+        window.setSearchMode = (mode) => {
+            const btnSingle = document.getElementById('mode-single');
+            const btnMulti = document.getElementById('mode-multi');
+            const keywordInput = document.getElementById('keyword');
+
+            if (mode === 'single') {
+                btnSingle.style.background = 'white';
+                btnSingle.style.color = '#1e1b4b';
+                btnSingle.style.boxShadow = 'var(--shadow-sm)';
+                btnMulti.style.background = 'transparent';
+                btnMulti.style.color = '#4338ca';
+                btnMulti.style.boxShadow = 'none';
+                keywordInput.placeholder = "Enter single tracking keyword...";
+            } else {
+                btnMulti.style.background = 'white';
+                btnMulti.style.color = '#1e1b4b';
+                btnMulti.style.boxShadow = 'var(--shadow-sm)';
+                btnSingle.style.background = 'transparent';
+                btnSingle.style.color = '#4338ca';
+                btnSingle.style.boxShadow = 'none';
+                keywordInput.placeholder = "Keywords (comma separated)...";
+            }
+        };
+
+        // --- Start Run ---
+        document.getElementById('search-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const keywordStr = document.getElementById('keyword').value;
+            const location = document.getElementById('location').value;
+            const size = document.getElementById('grid_size').value;
+            const btn = document.getElementById('start-btn');
+
+            const keywords = keywordStr.split(',').map(k => k.trim()).filter(k => k);
+
+            btn.disabled = true;
+            btn.innerHTML = '<span style="font-size: 0.9rem;">Starting...</span>';
+
+            try {
+                const res = await fetchAPI('/jobs/start/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ keywords: keywords, location, grid_size: size })
+                });
+
+                if (res.ok) {
+                    document.getElementById('keyword').value = '';
+                    document.getElementById('location').value = '';
+                    fetchJobs();
+                } else {
+                    const data = await res.json();
+                    alert(data.error || 'Failed to start job');
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`;
+            }
+        });
+
+        // --- Render Runs ---
+        async function fetchJobs() {
+            try {
+                const res = await fetchAPI('/jobs/');
+                if (!res.ok) return;
+                const jobs = await res.json();
+                if (Array.isArray(jobs)) renderJobs(jobs);
+            } catch (e) { console.error(e); }
+        }
+
+        async function fetchJobStatus(jobId) {
+            const res = await fetchAPI(`/jobs/${jobId}/status/`);
+            if (res.ok) return await res.json();
+            return null;
+        }
+
+        async function renderJobs(jobs) {
+            const tbody = document.getElementById('runs-table-body');
+
+            if (jobs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-muted)">No runs found. Start one above.</td></tr>';
+                return;
+            }
+
+            // Sync DOM
+            const incomingJobIds = jobs.map(j => 'run-row-' + j.bulk_job_id);
+            Array.from(tbody.children).forEach(child => {
+                if (child.id && !incomingJobIds.includes(child.id)) child.remove();
+            });
+
+            for (const simpleJob of jobs) {
+                let job = simpleJob;
+                const isFinal = ['completed', 'failed'].includes(job.status);
+                if (!isFinal) {
+                    const liveStatus = await fetchJobStatus(job.bulk_job_id);
+                    if (liveStatus) job = liveStatus;
+                }
+
+                let badgeClass = 'RUNNING';
+                let displayStatus = 'RUNNING';
+                if (job.status === 'completed') { badgeClass = 'SUCCEEDED'; displayStatus = 'SUCCEEDED'; }
+                if (job.status === 'failed') { badgeClass = 'FAILED'; displayStatus = 'FAILED'; }
+                if (job.status === 'pending') { badgeClass = 'READY'; displayStatus = 'READY'; }
+
+                const date = new Date(job.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                const count = job.total_extracted || 0;
+
+                let actionBtn = '';
+                if (job.status === 'completed' && job.keywords && Array.isArray(job.keywords) && typeof job.keywords[0] === 'object') {
+                    actionBtn = job.keywords.map(kj => {
+                        return `<a href="#" onclick="viewJobResults(${kj.keyword_job_id}, '${kj.keyword.replace(/'/g, "\\'")}', '${job.location.replace(/'/g, "\\'")}')" style="color:var(--accent); text-decoration:none; font-weight:600; display:block;">View ${kj.keyword} dataset</a>`;
+                    }).join('');
+                } else if (job.status === 'completed') {
+                    // Fallback if not fully loaded yet
+                    actionBtn = `<span style="color:var(--accent);">Ready soon...</span>`;
+                } else if (job.status === 'failed') {
+                    actionBtn = `<span style="color:var(--danger); font-size:0.8rem;">${job.status_message || 'Process failed'}</span>`;
+                } else {
+                    actionBtn = `<span style="color:var(--text-muted);">${job.status_message || 'In progress...'}</span>`;
+                }
+
+                // Get display keywords
+                let keywordsStr = "Loading...";
+                if (job.keywords && job.keywords.length > 0) {
+                    if (typeof job.keywords[0] === 'string') {
+                        keywordsStr = job.keywords.join(', ');
+                    } else {
+                        keywordsStr = job.keywords.map(k => k.keyword).join(', ');
+                    }
+                }
+
+                const rowHtml = `
+                    <td><span class="status-badge ${badgeClass}">${displayStatus}</span></td>
+                    <td>${date}</td>
+                    <td>${count} items</td>
+                    <td>
+                        <div style="font-weight:600;">${keywordsStr}</div>
+                        <div style="font-size:0.75rem; color:var(--text-muted);">${job.location}</div>
+                    </td>
+                    <td>${actionBtn}</td>
+                `;
+
+                let tr = document.getElementById('run-row-' + job.bulk_job_id);
+                if (tr) {
+                    tr.innerHTML = rowHtml;
+                } else {
+                    tr = document.createElement('tr');
+                    tr.id = 'run-row-' + job.bulk_job_id;
+                    tr.innerHTML = rowHtml;
+                    tbody.appendChild(tr);
+                }
+            }
+        }
+
+        // --- View Dataset ---
+        window.viewJobResults = async (keywordJobId, keyword, location) => {
+            currentDetailJobId = keywordJobId;
+            runsContent.style.display = 'none';
+            detailsContent.style.display = 'block';
+
+            document.getElementById('top-breadcrumbs').style.opacity = '1';
+            document.getElementById('top-breadcrumbs').style.visibility = 'visible';
+            document.getElementById('top-breadcrumbs').innerHTML = `
+                <a href="#" style="color:var(--text-muted);text-decoration:none;" onclick="document.getElementById('back-to-runs-btn').click();return false;">Runs</a>
+                <span class="sep">/</span>
+                <span class="current">${keyword}</span>
+             `;
+
+            document.getElementById('card-keyword-title').innerText = keyword;
+            document.getElementById('card-location').innerText = location;
+            document.getElementById('card-count').innerText = '...';
+
+            const container = document.getElementById('results-list-container');
+            container.innerHTML = '<div style="text-align:center; padding: 24px;">Loading...</div>';
+
+            // Reset Map
+            if (currentMap) currentMap.remove();
+
+            try {
+                const res = await fetchAPI(`/keyword/${keywordJobId}/results/`);
+                if (!res.ok) throw new Error("Failed connecting to dataset");
+                const respData = await res.json();
+                const places = respData.results || [];
+
+                document.getElementById('card-count').innerText = places.length;
+
+                setTimeout(() => {
+                    currentMap = L.map('results-map');
+                    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                        attribution: '&copy; OpenStreetMap',
+                        maxZoom: 20
+                    }).addTo(currentMap);
+
+                    const bounds = [];
+                    const markers = [];
+                    container.innerHTML = '';
+
+                    if (places.length === 0) {
+                        container.innerHTML = '<div style="text-align:center; padding: 24px; color: var(--text-muted);">No data found</div>';
+                    }
+
+                    places.forEach((place, index) => {
+                        const div = document.createElement('div');
+                        div.style.cursor = 'pointer';
+                        div.style.background = 'white';
+                        div.style.borderRadius = '12px';
+                        div.style.padding = '16px';
+                        div.style.display = 'flex';
+                        div.style.gap = '16px';
+                        div.style.alignItems = 'center';
+                        div.style.boxShadow = 'var(--shadow-sm)';
+                        div.style.border = '1px solid var(--border)';
+                        div.style.transition = 'all 0.2s';
+
+                        div.onmouseover = () => div.style.borderColor = 'var(--accent)';
+                        div.onmouseout = () => div.style.borderColor = 'var(--border)';
+
+                        const lat = parseFloat(place.latitude);
+                        const lng = parseFloat(place.longitude);
+                        const hasCoords = !isNaN(lat) && !isNaN(lng);
+
+                        div.innerHTML = `
+                            <div style="width: 48px; height: 48px; background: #f8fafc; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
+                                📍
+                            </div>
+                            <div style="flex: 1; min-width: 0;">
+                                <div style="font-weight: 600; color: #1e1b4b; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.95rem;">${place.name || '-'}</div>
+                                <div style="font-size: 0.8rem; color: #6366f1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px;">${place.category || 'Place'}</div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); display:flex; align-items:center; gap:4px;"><a href="${place.maps_url}" target="_blank" style="color:var(--text-muted); text-decoration:none;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg> View on maps</a></div>
+                            </div>
+                            <div style="text-align: right; flex-shrink: 0;">
+                                <div style="font-size: 0.85rem; font-weight: 600; background: var(--bg-color); padding: 4px 8px; border-radius: 6px; color: #4f46e5; border: 1px solid var(--border-light);">
+                                    ⭐ ${place.rating ? place.rating : 'N/A'}
+                                </div>
+                            </div>
+                        `;
+
+                        div.addEventListener('click', (e) => {
+                            if (e.target.closest('a') !== null) return;
+
+                            Array.from(container.children).forEach(c => c.style.backgroundColor = 'white');
+                            div.style.backgroundColor = '#eff6ff';
+
+                            if (hasCoords && markers[index]) {
+                                currentMap.flyTo([lat, lng], 17, { duration: 1.5 });
+                                markers[index].openPopup();
+                            }
+                        });
+
+                        container.appendChild(div);
+
+                        if (hasCoords) {
+                            const marker = L.marker([lat, lng])
+                                .bindPopup(`<strong>${place.name}</strong><br>${place.category}`)
+                                .addTo(currentMap);
+                            markers[index] = marker;
+                            bounds.push([lat, lng]);
+                        }
+                    });
+
+                    if (bounds.length > 0) currentMap.fitBounds(bounds);
+                    else currentMap.setView([0, 0], 2);
+                }, 100);
+            } catch (e) {
+                container.innerHTML = `<div style="text-align:center; padding: 24px; color: var(--danger);">${e.message}</div>`;
+            }
+        };
+
+        // --- Downloads ---
+        document.getElementById('dl-csv-btn').addEventListener('click', () => {
+            if (currentDetailJobId) downloadFile(`${API}/keyword/${currentDetailJobId}/export/`, 'csv');
+        });
+        document.getElementById('dl-json-btn').addEventListener('click', () => {
+            alert('JSON Export needs explicit Backend implementation! Refer to CSV export.');
+        });
+
+        window.downloadFile = async (url, ext) => {
+            const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+            const blob = await res.blob();
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `dataset_${currentDetailJobId}.${ext}`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(a.href);
+        };
+
+    </script>
+</body>
+
+</html>

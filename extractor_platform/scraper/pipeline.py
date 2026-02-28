@@ -1,0 +1,118 @@
+# scraper/pipeline.py
+import asyncio
+import structlog
+from playwright.async_api import async_playwright
+from .boundary import get_city_boundary
+from .grid import build_grid
+from .search import search_grid_cell
+
+log = structlog.get_logger()
+
+PARALLEL_CELLS = 6
+
+
+async def run_keyword_pipeline(keyword_job_id: int):
+    """
+    Runs the full grid search for ONE keyword.
+    Called in parallel for each keyword in a BulkJob.
+    """
+    from jobs.models import KeywordJob, Place
+    from django.utils import timezone
+
+    kj = await KeywordJob.objects.select_related('bulk_job').aget(id=keyword_job_id)
+    location = kj.bulk_job.location
+    grid_size = kj.bulk_job.grid_size
+
+    try:
+        # Phase 1 — Boundary
+        kj.status = 'fetching_boundary'
+        kj.status_message = f'Finding boundary for {location}...'
+        await kj.asave()
+
+        boundary = get_city_boundary(location)
+
+        # Phase 2 — Grid
+        kj.status = 'building_grid'
+        cells = build_grid(boundary, grid_size)
+        kj.total_cells = len(cells)
+        kj.status_message = (
+            f'{len(cells)} cells — '
+            f'up to {len(cells) * 120} results possible'
+        )
+        await kj.asave()
+
+        # Phase 3 — Search
+        kj.status = 'searching'
+        await kj.asave()
+
+        seen = set()
+        saved_count = 0
+        semaphore = asyncio.Semaphore(PARALLEL_CELLS)
+
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(
+                headless=True,
+                args=[
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-blink-features=AutomationControlled',
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu',
+                ]
+            )
+
+            async def search_and_save(cell):
+                nonlocal saved_count
+                async with semaphore:
+                    places = await search_grid_cell(
+                        browser, cell, kj.keyword
+                    )
+                    for place in places:
+                        key = (
+                            place.get('name', '').lower().strip() +
+                            place.get('street', '').lower().strip()[:20]
+                        )
+                        if key in seen or not place.get('name'):
+                            continue
+                        seen.add(key)
+
+                        try:
+                            await Place.objects.acreate(
+                                keyword_job=kj, **place
+                            )
+                            saved_count += 1
+                        except Exception:
+                            pass
+
+                    kj.cells_done += 1
+                    kj.total_extracted = saved_count
+                    kj.status_message = (
+                        f'Searched {kj.cells_done}/{kj.total_cells} cells '
+                        f'— {saved_count} places found'
+                    )
+                    await kj.asave()
+
+            await asyncio.gather(
+                *[search_and_save(cell) for cell in cells],
+                return_exceptions=True
+            )
+
+            await browser.close()
+
+        kj.status = 'completed'
+        kj.status_message = f'Done! {saved_count} places extracted.'
+        kj.total_extracted = saved_count
+        kj.completed_at = timezone.now()
+        await kj.asave()
+
+        log.info("keyword.done",
+                 keyword=kj.keyword,
+                 total=saved_count)
+
+    except Exception as e:
+        kj.status = 'failed'
+        kj.error_message = str(e)
+        kj.status_message = f'Failed: {str(e)}'
+        await kj.asave()
+        log.error("keyword.failed",
+                  keyword=kj.keyword, error=str(e))

@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "skills": {
+    "async-preact-signals": {
+      "source": "rodydavis/skills",
+      "sourceType": "github",
+      "computedHash": "303ebfaadcdd44d2cd9111b0682ab34539db77daffa73d268bf63ff229107534"
+    },
+    "automate-flutter-app-releases": {
+      "source": "rodydavis/skills",
+      "sourceType": "github",
+      "computedHash": "769ad3e34df31dae66bdcfb215222970ee328d97c7b2c6ea9738825c0ca01760"
+    },
+    "building-a-html-element-sandbox-with-lit": {
+      "source": "rodydavis/skills",
+      "sourceType": "github",
+      "computedHash": "dc48809b9c2c571af1395b0e6605e6c8df51f385de4c5e6e59d6d4f7b01f6034"
+    },
+    "building-a-rich-text-editor-with-lit": {
+      "source": "rodydavis/skills",
+      "sourceType": "github",
+      "computedHash": "95a5a8f5a8487edc70bc34e405419b4e921f629ddf388ed8a9bd54c3f9cd743c"
+    },
+    "color-utilities-in-javascript": {
+      "source": "rodydavis/skills",
+      "sourceType": "github",
+      "computedHash": "a2bf2944ba1f48465cf8b08e686a882f7c5711982b087eccae9f6bc48745874c"
+    },
+    "deep-linking-for-flutter-web": {
+      "source": "rodydavis/skills",
+      "sourceType": "github",
+      "computedHash": "ccfda58789056be9c78dba70a904cd30a0dc87fe2c2124923cc75bc5509bd10d"
+    },
+    "displaying-html-in-flutter": {
+      "source": "rodydavis/skills",
+      "sourceType": "github",
+      "computedHash": "e252669f6f9cfbab14ebd4b28347351d2d51acb39d48bc7de03bbda266005111"
+    },
+    "draggable-dom-with-lit": {
+      "source": "rodydavis/skills",
+      "sourceType": "github",
+      "computedHash": "3db32568c53215cf67065bacaa5dfad18678d9ca67f46bfd166f6df41cd94a53"
+    },
+    "dynamic-themes-with-codemirror": {
+      "source": "rodydavis/skills",
+      "sourceType": "github",
+      "computedHash": "e177e4e716fa8139cf0945d77230e6c4089822fea5fb598003dfea49a33c5d61"
+    },
+    "file-based-routing-for-static-sites": {
+      "source": "rodydavis/skills",
+      "sourceType": "github",
+      "computedHash": "42197b1d4296e084cbb68a494b9ca190500b442e4af37fa7f4bb0a2bfb88316e"
+    },
+    "flutter-fastlane-one-click-beta": {
+      "source": "rodydavis/skills",
+      "sourceType": "github",
+      "computedHash": "020055d90d16b57c731c168768592d24fc59ea47064fc357204909124d7a735b"
+    },
+    "flutter-infinite-canvas": {
+      "source": "rodydavis/skills",
+      "sourceType": "github",
+      "computedHash": "87ba84be1a3dbf4c8fefd39ac266d2bad5d901e3a94a8d3dd13f5966570ae575"
+    },
+    "flutter-input-output-preview": {
+      "source": "rodydavis/skills",
+      "sourceType": "github",
+      "computedHash": "6853ea19ce0c81fe7c91b937df89939034898b9e9d9a1df1db502ad0a82cc100"
+    },
+    "flutter-markdown-view-with-material-3": {
+      "source": "rodydavis/skills",
+      "sourceType": "github",
+      "computedHash": "cdd2399145bd52c42d89d6f0196bdb59b46f3243a5ae45eebaa4bfdfc4fe8535"
+    },
+    "flutter-native-http-client": {
+      "source": "rodydavis/skills",
+      "sourceType": "github",
+      "computedHash": "864aed3a9fc3adbc33b30f4153b8d382f92bb9aad3daa6e35480b9d6b4ed5a69"
+    },
+    "flutter-stream-widget": {
+      "source": "rodydavis/skills",
+      "sourceType": "github",
+      "computedHash": "ebc3083b5a1857d9c586fc781d114affc48716379ef2a11878ea9c048a160304"
+    },
+    "flutter-terminal-cheat-sheet": {
+      "source": "rodydavis/skills",
+      "sourceType": "github",
+      "computedHash": "0736d513d3389a23e444699f5002056037e8cabc949ef267e3b09609b5c738d6"
+    },
+    "host-your-flutter-project-as-a-rest-api": {
+      "source": "rodydavis/skills",
+      "sourceType": "github",
+      "computedHash": "9c3411ac6a2084586a2cffdc604683eb82aa8dc04ca8fbeeb52cebf517dd27c4"
+    },
+    "how-to-build-a-flutter-app-on-xcode-cloud": {
+      "source": "rodydavis/skills",
+      "sourceType": "github",
+      "computedHash": "82b3fb5da94ba32862d41e8522cb51a2b7e3c51b34d0e6f5d9debb526cf8bc0b"
+    },
+    "how-to-build-a-graph-database-with-flutter": {
+      "source": "rodydavis/skills",
+      "sourceType": "github",
+      "computedHash": "39d331e645d4887832a2747112d41a299f1b6d6f3bfc26946ab396d97e3a66cb"
+    },
+    "how-to-build-a-native-cross-platform-project-with-flutter": {
+      "source": "rodydavis/skills",
+      "sourceType": "github",
+      "computedHash": "c83bc0d7419ec5d499f509990ba4eef52f8cfe9041d92323236d3a87d50faa54"
+    },
+    "how-to-build-a-webrtc-signal-server-with-pocketbase": {
+      "source": "rodydavis/skills",
+      "sourceType": "github",
+      "computedHash": "26fec7acd2a0357eda17d5ade78f30c428a856560dcf0ba76fc5f78678473f28"
+    },
+    "various-ways-to-invoke-functions-in-dart": {
+      "source": "rodydavis/skills",
+      "sourceType": "github",
+      "computedHash": "fb7ffc2b1c547c68d447e2f01a77cf0414418fed7b430a9f7b65c769fdba9284"
+    }
+  }
+}
