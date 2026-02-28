@@ -33,7 +33,8 @@ async def run_keyword_pipeline(keyword_job_id: int, context):
         kj.status_message = f'Finding boundary for {location}...'
         await kj.asave()
 
-        boundary = get_city_boundary(location)
+        from asgiref.sync import sync_to_async
+        boundary = await sync_to_async(get_city_boundary)(location)
 
         # Phase 2 — Grid
         kj.status = 'building_grid'

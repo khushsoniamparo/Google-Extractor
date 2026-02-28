@@ -1,0 +1,89 @@
+﻿2026-02-28 23:37:49 [error    ] keyword.failed                 error='You cannot call this from an async context - use a thread or sync_to_async.' keyword=TestKey
+.\extractor_platform\venv\Scripts\python 
+: Traceback (most recent call last):
+At line:1 char:1
++ 
+.\extractor_platform\venv\Scripts\python 
+test_job.py > error.log 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecifi 
+   ed: (Traceback (most recent call las  
+  t)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeComm 
+   andError
+ 
+  File "C:\Users\KHUSH SONI\OneDrive\Desk
+top\scrapper\test_job.py", line 11, in 
+<module>
+    asyncio.run(run_bulk_job_async(9))
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\KHUSH SONI\AppData\Local
+\Programs\Python\Python313\Lib\asyncio\ru
+nners.py", line 195, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "C:\Users\KHUSH SONI\AppData\Local
+\Programs\Python\Python313\Lib\asyncio\ru
+nners.py", line 118, in run
+    return 
+self._loop.run_until_complete(task)
+           
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\KHUSH SONI\AppData\Local
+\Programs\Python\Python313\Lib\asyncio\ba
+se_events.py", line 719, in 
+run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "C:\Users\KHUSH SONI\OneDrive\Desk
+top\scrapper\extractor_platform\jobs\task
+s.py", line 115, in run_bulk_job_async
+    f'{bulk_job.total_extracted} total 
+places.'
+       ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\KHUSH SONI\OneDrive\Desk
+top\scrapper\extractor_platform\jobs\mode
+ls.py", line 35, in total_extracted
+    return sum(j.total_extracted for j 
+in self.keyword_jobs.all())
+                                         
+ ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\KHUSH SONI\OneDrive\Desk
+top\scrapper\extractor_platform\venv\Lib\
+site-packages\django\db\models\query.py",
+ line 390, in __iter__
+    self._fetch_all()
+    ~~~~~~~~~~~~~~~^^
+  File "C:\Users\KHUSH SONI\OneDrive\Desk
+top\scrapper\extractor_platform\venv\Lib\
+site-packages\django\db\models\query.py",
+ line 2000, in _fetch_all
+    self._result_cache = 
+list(self._iterable_class(self))
+                         
+~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\KHUSH SONI\OneDrive\Desk
+top\scrapper\extractor_platform\venv\Lib\
+site-packages\django\db\models\query.py",
+ line 95, in __iter__
+    results = compiler.execute_sql(
+        
+chunked_fetch=self.chunked_fetch, 
+chunk_size=self.chunk_size
+    )
+  File "C:\Users\KHUSH SONI\OneDrive\Desk
+top\scrapper\extractor_platform\venv\Lib\
+site-packages\django\db\models\sql\compil
+er.py", line 1622, in execute_sql
+    cursor = self.connection.cursor()
+  File "C:\Users\KHUSH SONI\OneDrive\Desk
+top\scrapper\extractor_platform\venv\Lib\
+site-packages\django\utils\asyncio.py", 
+line 24, in inner
+    raise 
+SynchronousOnlyOperation(message)
+django.core.exceptions.SynchronousOnlyOpe
+ration: You cannot call this from an 
+async context - use a thread or 
+sync_to_async.

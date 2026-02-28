@@ -103,19 +103,22 @@ async def run_bulk_job_async(bulk_job_id: int):
         finally:
             await context.close()
 
-    tasks = [process_keyword(kj) for kj in bulk_job.keyword_jobs.all()]
+    tasks = [process_keyword(kj) async for kj in bulk_job.keyword_jobs.all()]
     await asyncio.gather(*tasks, return_exceptions=True)
 
     await pool.stop()
 
     await bulk_job.arefresh_from_db()
     bulk_job.status = 'completed'
+    
+    total_extr = sum([kj.total_extracted async for kj in bulk_job.keyword_jobs.all()])
+
     bulk_job.status_message = (
         f'All keywords done. '
-        f'{bulk_job.total_extracted} total places.'
+        f'{total_extr} total places.'
     )
     bulk_job.completed_at = timezone.now()
     await bulk_job.asave()
     log.info("bulk.completed",
              bulk_job_id=bulk_job_id,
-             total=bulk_job.total_extracted)
+             total=total_extr)
