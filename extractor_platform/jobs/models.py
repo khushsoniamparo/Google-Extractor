@@ -109,3 +109,24 @@ class Place(models.Model):
 
     def __str__(self):
         return self.name
+
+class SearchedCell(models.Model):
+    keyword_job = models.ForeignKey(
+        KeywordJob,
+        on_delete=models.CASCADE,
+        related_name='searched_cells'
+    )
+    cell_key = models.CharField(max_length=100)
+    results_count = models.IntegerField(default=0)
+    
+    class Meta:
+        unique_together = ['keyword_job', 'cell_key']
+
+class CachedBoundary(models.Model):
+    location = models.CharField(max_length=500, unique=True)
+    min_lat = models.FloatField()
+    max_lat = models.FloatField()
+    min_lng = models.FloatField()
+    max_lng = models.FloatField()
+    display_name = models.CharField(max_length=500)
+    created_at = models.DateTimeField(auto_now_add=True)

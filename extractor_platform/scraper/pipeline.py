@@ -6,12 +6,16 @@ from .boundary import get_city_boundary
 from .grid import build_grid
 from .search import search_grid_cell
 
+from .concurrency import get_optimal_concurrency
+
 log = structlog.get_logger()
 
-PARALLEL_CELLS = 6
+# Used limits from system memory
+limits = get_optimal_concurrency()
+PARALLEL_CELLS = limits['playwright']
 
 
-async def run_keyword_pipeline(keyword_job_id: int):
+async def run_keyword_pipeline(keyword_job_id: int, context):
     """
     Runs the full grid search for ONE keyword.
     Called in parallel for each keyword in a BulkJob.
@@ -45,59 +49,58 @@ async def run_keyword_pipeline(keyword_job_id: int):
         kj.status = 'searching'
         await kj.asave()
 
-        seen = set()
-        saved_count = 0
         semaphore = asyncio.Semaphore(PARALLEL_CELLS)
+        saved_count = 0
+        from .db_writer import AsyncDBWriter
+        writer = AsyncDBWriter(keyword_job_id=kj.id, batch_size=50)
 
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(
-                headless=True,
-                args=[
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                    '--disable-blink-features=AutomationControlled',
-                    '--disable-dev-shm-usage',
-                    '--disable-gpu',
-                ]
-            )
+        from jobs.models import SearchedCell
 
-            async def search_and_save(cell):
-                nonlocal saved_count
-                async with semaphore:
-                    places = await search_grid_cell(
-                        browser, cell, kj.keyword
-                    )
-                    for place in places:
-                        key = (
-                            place.get('name', '').lower().strip() +
-                            place.get('street', '').lower().strip()[:20]
-                        )
-                        if key in seen or not place.get('name'):
-                            continue
-                        seen.add(key)
+        def cell_key(cell) -> str:
+            return f"{round(cell.center_lat, 5)}:{round(cell.center_lng, 5)}:{cell.zoom}"
 
-                        try:
-                            await Place.objects.acreate(
-                                keyword_job=kj, **place
-                            )
-                            saved_count += 1
-                        except Exception:
-                            pass
+        async def search_and_save(cell):
+            nonlocal saved_count
+            key = cell_key(cell)
+            
+            # Skip if already done
+            if await SearchedCell.objects.filter(
+                keyword_job=kj,
+                cell_key=key
+            ).aexists():
+                kj.cells_done += 1
+                return
 
-                    kj.cells_done += 1
-                    kj.total_extracted = saved_count
-                    kj.status_message = (
-                        f'Searched {kj.cells_done}/{kj.total_cells} cells '
-                        f'— {saved_count} places found'
-                    )
-                    await kj.asave()
+            async with semaphore:
+                places = await search_grid_cell(
+                    context, cell, kj.keyword
+                )
+                for place in places:
+                    if writer.add(place):
+                        saved_count += 1
+                
+                # Mark done
+                await SearchedCell.objects.acreate(
+                    keyword_job=kj,
+                    cell_key=key,
+                    results_count=len(places)
+                )
+                
+                kj.cells_done += 1
+                kj.total_extracted = writer.count
+                kj.status_message = (
+                    f'Searched {kj.cells_done}/{kj.total_cells} cells '
+                    f'— {saved_count} places found'
+                )
+                await kj.asave()
 
-            await asyncio.gather(
-                *[search_and_save(cell) for cell in cells],
-                return_exceptions=True
-            )
+        await asyncio.gather(
+            *[search_and_save(cell) for cell in cells],
+            return_exceptions=True
+        )
 
-            await browser.close()
+        writer.stop()
+        kj.total_extracted = writer.count
 
         kj.status = 'completed'
         kj.status_message = f'Done! {saved_count} places extracted.'

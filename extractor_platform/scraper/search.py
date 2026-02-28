@@ -8,7 +8,7 @@ from urllib.parse import quote
 log = structlog.get_logger()
 
 
-async def search_grid_cell(browser, cell, keyword):
+async def search_grid_cell(context, cell, keyword):
     """
     Search one grid cell and extract ALL data directly
     from the search results page — no separate detail visits.
@@ -20,28 +20,6 @@ async def search_grid_cell(browser, cell, keyword):
         f"https://www.google.com/maps/search/{quote(keyword)}"
         f"/@{cell.center_lat},{cell.center_lng},14z"
     )
-
-    context = await browser.new_context(
-        viewport={'width': 1920, 'height': 1080},
-        user_agent=(
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-            'AppleWebKit/537.36 (KHTML, like Gecko) '
-            'Chrome/120.0.0.0 Safari/537.36'
-        ),
-        locale='en-US',
-    )
-
-    # Block unnecessary resources — faster loading
-    await context.route(
-        "**/*.{png,jpg,jpeg,gif,webp,svg,woff,woff2,ttf,otf}",
-        lambda route: route.abort()
-    )
-
-    await context.add_init_script("""
-        Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-        Object.defineProperty(navigator, 'plugins', {get: () => [1,2,3,4,5]});
-        window.chrome = {runtime: {}};
-    """)
 
     page = await context.new_page()
     places = []
@@ -108,7 +86,7 @@ async def search_grid_cell(browser, cell, keyword):
         log.error("search.error", cell=cell.index, error=str(e))
 
     finally:
-        await context.close()
+        await page.close()
 
     return places
 
