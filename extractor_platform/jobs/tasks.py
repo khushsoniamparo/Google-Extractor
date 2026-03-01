@@ -88,7 +88,7 @@ async def run_bulk_job_async(bulk_job_id: int):
         
         # Block unnecessary resources — faster loading
         await context.route(
-            "**/*.{png,jpg,jpeg,gif,webp,svg,woff,woff2,ttf,otf}",
+            "**/*.{png,jpg,jpeg,gif,webp,svg,woff,woff2,ttf,otf,css}",
             lambda route: route.abort()
         )
 
@@ -103,15 +103,21 @@ async def run_bulk_job_async(bulk_job_id: int):
         finally:
             await context.close()
 
-    tasks = [process_keyword(kj) async for kj in bulk_job.keyword_jobs.all()]
-    await asyncio.gather(*tasks, return_exceptions=True)
+    async for kj in bulk_job.keyword_jobs.all():
+        try:
+            await process_keyword(kj)
+        except Exception as e:
+            log.error("keyword.failed", error=str(e), keyword=kj.keyword)
 
     await pool.stop()
 
     await bulk_job.arefresh_from_db()
     bulk_job.status = 'completed'
     
-    total_extr = sum([kj.total_extracted async for kj in bulk_job.keyword_jobs.all()])
+    from django.db.models import Sum
+    from jobs.models import KeywordJob
+    res = await KeywordJob.objects.filter(bulk_job=bulk_job).aaggregate(tot=Sum('total_extracted'))
+    total_extr = res['tot'] or 0
 
     bulk_job.status_message = (
         f'All keywords done. '

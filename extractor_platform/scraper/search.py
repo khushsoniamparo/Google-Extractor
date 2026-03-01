@@ -1,4 +1,3 @@
-# scraper/search.py
 import asyncio
 import re
 import structlog
@@ -7,83 +6,87 @@ from urllib.parse import quote
 
 log = structlog.get_logger()
 
-
 async def search_grid_cell(context, cell, keyword):
     """
-    Search one grid cell and extract ALL data directly
-    from the search results page — no separate detail visits.
-    Uses the exact same approach Apify uses.
+    Ultra-fast Playwright extraction.
+    Takes 2-3 seconds per grid.
     """
-    # This URL format forces Google Maps to search
-    # within a specific lat/lng viewport
     url = (
         f"https://www.google.com/maps/search/{quote(keyword)}"
-        f"/@{cell.center_lat},{cell.center_lng},14z"
+        f"/@{cell.center_lat},{cell.center_lng},{cell.zoom}z"
     )
 
     page = await context.new_page()
     places = []
+    
+    start_time = asyncio.get_event_loop().time()
 
     try:
-        await page.goto(url, wait_until='domcontentloaded', timeout=30000)
-        await page.wait_for_timeout(1500)
+        await page.goto(url, wait_until='domcontentloaded', timeout=15000)
+        
+        # Fast async scrolling evaluated directly in V8
+        await page.evaluate("""
+            async () => {
+                let feed = null;
+                // Wait up to 3 seconds for feed to appear dynamically
+                for(let i=0; i<30; i++) {
+                    feed = document.querySelector('div[role="feed"]');
+                    if(feed) break;
+                    await new Promise(r => setTimeout(r, 100));
+                }
+                
+                if (!feed) return; // feed not found, blocked or empty
+                
+                let lastScrollHeight = 0;
+                let noChangeCount = 0;
+                
+                await new Promise((resolve) => {
+                    const timer = setInterval(() => {
+                        feed = document.querySelector('div[role="feed"]');
+                        if (!feed) { clearInterval(timer); return resolve(); }
+                        
+                        feed.scrollTop += 5000;
+                        
+                        if (feed.scrollHeight === lastScrollHeight) {
+                            // Wait up to ~1.5 seconds (30 * 50ms) for the next XHR to load
+                            noChangeCount++;
+                            if (noChangeCount >= 30) {
+                                clearInterval(timer);
+                                resolve();
+                            }
+                        } else {
+                            noChangeCount = 0;
+                            lastScrollHeight = feed.scrollHeight;
+                        }
+                        
+                        if (document.body.innerText.includes("you've reached the end of the list")) {
+                            clearInterval(timer);
+                            resolve();
+                        }
+                    }, 50); 
+                });
+            }
+        """)
 
-        # Handle cookie consent
-        try:
-            btn = page.locator('button:has-text("Accept all")').first
-            if await btn.count() > 0:
-                await btn.click()
-                await page.wait_for_timeout(800)
-        except Exception:
-            pass
-
-        # Wait for results feed
-        try:
-            await page.wait_for_selector(
-                'div[role="feed"]', timeout=10000
-            )
-        except Exception:
-            log.warning("search.no_feed", cell=cell.index)
-            return []
-
-        # Scroll aggressively to load all 120 results
-        no_change = 0
-        last_count = 0
-
-        for _ in range(25):  # Max 25 scroll attempts
-            await page.evaluate("""
-                const feed = document.querySelector('div[role="feed"]');
-                if (feed) feed.scrollTop += 5000;
-            """)
-            await page.wait_for_timeout(500)
-
-            # Check end of results
-            page_content = await page.content()
-            if "you've reached the end of the list" in page_content.lower():
-                break
-
-            current = await page.locator(
-                'div[role="feed"] > div'
-            ).count()
-
-            if current == last_count:
-                no_change += 1
-                if no_change >= 4:
-                    break
-            else:
-                no_change = 0
-                last_count = current
-
-        # Extract ALL place data directly from cards
         places = await extract_from_cards(page, cell)
-        log.info("search.done",
-                 cell=cell.index,
-                 found=len(places),
+        
+        elapsed = asyncio.get_event_loop().time() - start_time
+        log.info("cell.http", 
+                 cell=cell.index, 
+                 method="playwright", 
+                 found=len(places), 
+                 elapsed=f"{elapsed:.1f}",
                  lat=cell.center_lat,
                  lng=cell.center_lng)
 
     except Exception as e:
-        log.error("search.error", cell=cell.index, error=str(e))
+        elapsed = asyncio.get_event_loop().time() - start_time
+        log.error("cell.http", 
+                  cell=cell.index, 
+                  method="error", 
+                  found=0, 
+                  elapsed=f"{elapsed:.1f}", 
+                  error=str(e))
 
     finally:
         await page.close()
@@ -93,118 +96,89 @@ async def search_grid_cell(context, cell, keyword):
 
 async def extract_from_cards(page, cell) -> list:
     """
-    Extract all data directly from search result cards.
-    Same fields as Apify — no detail page visits needed.
+    Evaluate extraction entirely inside the browser.
     """
-    places = []
-
-    cards = await page.locator(
-        'div[role="feed"] > div > div[jsaction]'
-    ).all()
-
-    for card in cards:
-        try:
-            # Name
-            name_el = card.locator('div.qBF1Pd, span.fontHeadlineSmall')
-            name = ''
-            if await name_el.count() > 0:
-                name = (await name_el.first.text_content() or '').strip()
-
-            if not name:
-                continue
-
-            # Rating
-            rating = ''
-            rating_el = card.locator('span.MW4etd')
-            if await rating_el.count() > 0:
-                rating = (await rating_el.first.text_content() or '').strip()
-
-            # Review count
-            reviews = ''
-            reviews_el = card.locator('span.UY7F9')
-            if await reviews_el.count() > 0:
-                raw = (await reviews_el.first.text_content() or '').strip()
-                reviews = re.sub(r'[^\d,]', '', raw)
-
-            # Address + category (in the subtitle lines)
-            lines = await card.locator(
-                'div.W4Efsd'
-            ).all_text_contents()
-            clean_lines = [
-                l.strip() for l in lines if l.strip()
-            ]
-
-            category = clean_lines[0] if clean_lines else ''
-            address = ''
-            phone = ''
-
-            for line in clean_lines[1:]:
-                # Phone detection
-                if re.search(r'[\+\d][\d\s\-]{7,}', line):
-                    phone = line.strip()
-                elif line and not address:
-                    address = line.strip()
-
-            # Maps URL + place_id + lat/lng
-            link_el = card.locator('a[href*="/maps/place/"]')
-            maps_url = ''
-            place_id = ''
-            lat = None
-            lng = None
-            if await link_el.count() > 0:
-                href = await link_el.first.get_attribute('href') or ''
-                maps_url = href
-                # Extract place_id from URL
-                match = re.search(r'place/([^/]+)/', href)
-                if match:
-                    place_id = match.group(1)
-                
-                # Try to extract precise lat/lng from the @lat,lng portion or fallback to data=!3d...
-                coord_match = re.search(r'@([-\d\.]+),([-\d\.]+)', href)
-                if coord_match:
-                    try:
-                        lat = float(coord_match.group(1))
-                        lng = float(coord_match.group(2))
-                    except ValueError:
-                        pass
-                
-                if not lat or not lng:
-                    # Alternative payload structure
-                    coord_match2 = re.search(r'!3d([-\d\.]+)!4d([-\d\.]+)', href)
-                    if coord_match2:
-                        try:
-                            lat = float(coord_match2.group(1))
-                            lng = float(coord_match2.group(2))
-                        except ValueError:
-                            pass
+    return await page.evaluate(f"""
+        () => {{
+            const cards = Array.from(document.querySelectorAll('div[role="feed"] > div > div[jsaction]'));
+            const places = [];
             
-            # Use Fallback grid cell coords
-            if not lat or not lng:
-                 lat = cell.center_lat
-                 lng = cell.center_lng
+            for (const card of cards) {{
+                try {{
+                    const nameEl = card.querySelector('div.qBF1Pd, span.fontHeadlineSmall') || card.querySelector('.fontHeadlineSmall');
+                    if (!nameEl) continue;
+                    const name = nameEl.innerText.trim();
+                    if (!name) continue;
 
-            # Website (sometimes shown directly on card)
-            website = ''
-            web_el = card.locator('a[data-item-id="authority"]')
-            if await web_el.count() > 0:
-                website = await web_el.get_attribute('href') or ''
+                    const ratingEl = card.querySelector('span.MW4etd');
+                    const rating = ratingEl ? ratingEl.innerText.trim() : '';
 
-            places.append({
-                'place_id': place_id or name,
-                'name': name,
-                'category': category,
-                'street': address,
-                'phone': phone,
-                'website': website,
-                'rating': rating,
-                'review_count': reviews,
-                'maps_url': maps_url,
-                'latitude': lat,
-                'longitude': lng,
-            })
+                    const reviewEl = card.querySelector('span.UY7F9') || card.querySelector('[aria-label*="reviews"]');
+                    let reviews = '';
+                    if (reviewEl) {{
+                        reviews = reviewEl.innerText.replace(/[^\\d]/g, '');
+                    }}
 
-        except Exception as e:
-            log.warning("card.parse_error", error=str(e))
-            continue
+                    const textLines = Array.from(card.querySelectorAll('div.W4Efsd')).map(e => e.innerText.trim());
+                    const uniqueLines = [...new Set(textLines)].filter(Boolean);
+                    
+                    const category = uniqueLines[0] || '';
+                    let address = '';
+                    let phone = '';
 
-    return places
+                    for (let i = 1; i < uniqueLines.length; i++) {{
+                        const line = uniqueLines[i];
+                        if (/[\\+\\d][\\d\\s\\-]{{7,}}/.test(line)) {{
+                            phone = line;
+                        }} else if (!address && line.length > 3 && !line.includes('·')) {{
+                            address = line;
+                        }}
+                    }}
+
+                    const linkEl = card.querySelector('a[href*="/maps/place/"]');
+                    let maps_url = '';
+                    let place_id = name;
+                    let lat = {cell.center_lat};
+                    let lng = {cell.center_lng};
+
+                    if (linkEl && linkEl.href) {{
+                        maps_url = linkEl.href;
+                        const match = maps_url.match(/place\\/([^\\/]+)\\//);
+                        if (match) place_id = match[1];
+                        
+                        const coordMatch = maps_url.match(/@([-\\d\\.]+),([-\\d\\.]+)/);
+                        if (coordMatch) {{
+                            lat = parseFloat(coordMatch[1]);
+                            lng = parseFloat(coordMatch[2]);
+                        }} else {{
+                            const coordMatch2 = maps_url.match(/!3d([-\\d\\.]+)!4d([-\\d\\.]+)/);
+                            if (coordMatch2) {{
+                                lat = parseFloat(coordMatch2[1]);
+                                lng = parseFloat(coordMatch2[2]);
+                            }}
+                        }}
+                    }}
+
+                    const webEl = card.querySelector('a[data-item-id="authority"]');
+                    const website = webEl ? webEl.href : '';
+
+                    places.push({{
+                        place_id: place_id,
+                        name: name,
+                        category: category,
+                        street: address,
+                        phone: phone,
+                        website: website,
+                        rating: rating,
+                        review_count: reviews,
+                        maps_url: maps_url,
+                        latitude: lat,
+                        longitude: lng
+                    }});
+                }} catch(e) {{
+                    console.error(e);
+                }}
+            }}
+            return places;
+        }}
+    """)

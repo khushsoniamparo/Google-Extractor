@@ -111,6 +111,52 @@ class StartBulkJobView(APIView):
         }, status=201)
 
 
+class EstimateJobView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        location = request.data.get('location', '').strip()
+        keywords = request.data.get('keywords', [])
+        grid_size = int(request.data.get('grid_size', 8))
+
+        if not location:
+            return Response({'error': 'location required'}, status=400)
+            
+        if not keywords:
+            keywords = []
+        elif isinstance(keywords, str):
+            keywords = [k.strip() for k in keywords.split(',') if k.strip()]
+
+        num_keywords = len(keywords) if keywords else 1
+        cells_per_grid = grid_size * grid_size
+        zooms_per_cell = 4  # hardcoded derived from ZOOM_LEVELS
+        tasks_per_keyword = cells_per_grid * zooms_per_cell
+        total_tasks = tasks_per_keyword * num_keywords
+
+        # Computation based on assumptions
+        http_concurrency = 30
+        playwright_concurrency = 5
+
+        total_time_sec = 10  # base start time for cookies/bounds
+        
+        for _ in range(num_keywords):
+            # http 
+            http_batches = max(1, tasks_per_keyword / http_concurrency)
+            kw_time = http_batches * 3.5  # ~3.5s per batch
+            
+            # playwrigtt fallback approx (say 15% get blocked)
+            pw_tasks = tasks_per_keyword * 0.15
+            pw_batches = max(1, pw_tasks / playwright_concurrency)
+            kw_time += pw_batches * 6.0
+            
+            total_time_sec += kw_time
+
+        return Response({
+            'total_cells': cells_per_grid * num_keywords,
+            'total_requests': total_tasks,
+            'estimated_seconds': int(total_time_sec)
+        })
+
 class BulkJobStatusView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -237,3 +283,15 @@ class ExportKeywordCSVView(APIView):
             })
 
         return response
+
+
+class BulkJobDeleteView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, bulk_job_id):
+        try:
+            bulk_job = BulkJob.objects.get(id=bulk_job_id, user=request.user)
+            bulk_job.delete()
+            return Response({'status': 'deleted'})
+        except BulkJob.DoesNotExist:
+            return Response({'error': 'Not found'}, status=404)
