@@ -20,9 +20,11 @@ from playwright.async_api import async_playwright
 
 log = structlog.get_logger()
 
+from .location_resolver import resolve_location_cached
+
 # ── CONFIGURATION ──────────────────────────────────────────────────
 # All zoom levels searched simultaneously per cell
-ZOOM_LEVELS = [13, 14, 15, 16]
+ZOOM_LEVELS = [14, 15, 16]
 
 # How many HTTP requests fire at the same time
 # 8×8 grid × 4 zooms = 256 tasks — semaphore controls batching
@@ -457,35 +459,41 @@ async def run_keyword_pipeline(keyword_job_id: int):
         await kj.asave()
         await ensure_cookies()
 
-        # ── Step 2: Boundary ──────────────────────────────────────
-        kj.status_message = f'Finding boundary for {location}...'
+        # ── Step 2: Boundary & Resolution ─────────────────────────
+        kj.status_message = f'Finding boundary and resolving {location}...'
         await kj.asave()
         
         from asgiref.sync import sync_to_async
-        boundary = await sync_to_async(_get_boundary)(location)
+        resolved = await sync_to_async(resolve_location_cached)(location)
+        search_points = resolved.get('search_points', [])
+        is_state = resolved.get('type') == 'state' and len(search_points) > 1
 
         # ── Step 3: Build ALL (cell × zoom) tasks ─────────────────
         kj.status = 'building_grid'
-        cells = _build_grid(boundary, grid_size)
         
-        lat_diff = boundary['max_lat'] - boundary['min_lat']
-        lng_diff = boundary['max_lng'] - boundary['min_lng']
-        area = lat_diff * lng_diff
-        
-        if area > 4.0: # Huge state/country
-            zoom_levels = [10, 11, 12, 13]
-        elif area > 1.0: # Medium state
-            zoom_levels = [11, 12, 13, 14]
-        elif area > 0.1: # Large city/county
-            zoom_levels = [12, 13, 14, 15]
-        else: # City/Town/Neighborhood
-            zoom_levels = [13, 14, 15, 16]
+        cells = []
+        if is_state:
+            for point in search_points:
+                pt_bound = {
+                    'min_lat': point['lat'] - 0.03,
+                    'max_lat': point['lat'] + 0.03,
+                    'min_lng': point['lng'] - 0.03,
+                    'max_lng': point['lng'] + 0.03,
+                }
+                # Create smaller grid around each point for states
+                # E.g. 5x5 for each point
+                sub_grid_size = min(grid_size, 5) 
+                cells.extend(_build_grid(pt_bound, sub_grid_size))
+        else:
+            cells = _build_grid(resolved['boundary'], grid_size)
+            
+        zoom_levels = ZOOM_LEVELS
 
         # Every cell × every zoom = one search task
         all_tasks = [
-            {'cell_idx': c['idx'], 'lat': c['lat'],
+            {'cell_idx': idx, 'lat': c['lat'],
              'lng': c['lng'], 'zoom': z}
-            for c in cells
+            for idx, c in enumerate(cells)
             for z in zoom_levels
         ]
 
@@ -548,6 +556,7 @@ async def run_keyword_pipeline(keyword_job_id: int):
                     failed.append(task)
                 elif method == 'no_data':
                     stats['no_data'] += 1
+                    failed.append(task)
                 else:
                     stats['other'] += 1
                     failed.append(task)

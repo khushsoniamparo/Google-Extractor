@@ -130,3 +130,9 @@ class CachedBoundary(models.Model):
     max_lng = models.FloatField()
     display_name = models.CharField(max_length=500)
     created_at = models.DateTimeField(auto_now_add=True)
+
+class CachedLocationResolution(models.Model):
+    location = models.CharField(max_length=500, unique=True)
+    data = models.JSONField(default=dict)
+    created_at = models.DateTimeField(auto_now_add=True)
+
