@@ -99,9 +99,9 @@ async def run_bulk_job_async(bulk_job_id: int):
         """)
 
         try:
-            await run_keyword_pipeline(kj.id, context)
+            await run_keyword_pipeline(kj.id)
         finally:
-            await context.close()
+            pass
 
     async for kj in bulk_job.keyword_jobs.all():
         try:
