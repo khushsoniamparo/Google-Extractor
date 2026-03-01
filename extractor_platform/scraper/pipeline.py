@@ -467,27 +467,39 @@ async def run_keyword_pipeline(keyword_job_id: int):
         # ── Step 3: Build ALL (cell × zoom) tasks ─────────────────
         kj.status = 'building_grid'
         cells = _build_grid(boundary, grid_size)
+        
+        lat_diff = boundary['max_lat'] - boundary['min_lat']
+        lng_diff = boundary['max_lng'] - boundary['min_lng']
+        area = lat_diff * lng_diff
+        
+        if area > 4.0: # Huge state/country
+            zoom_levels = [10, 11, 12, 13]
+        elif area > 1.0: # Medium state
+            zoom_levels = [11, 12, 13, 14]
+        elif area > 0.1: # Large city/county
+            zoom_levels = [12, 13, 14, 15]
+        else: # City/Town/Neighborhood
+            zoom_levels = [13, 14, 15, 16]
 
         # Every cell × every zoom = one search task
-        # 8×8 grid × 4 zooms = 256 tasks
         all_tasks = [
             {'cell_idx': c['idx'], 'lat': c['lat'],
              'lng': c['lng'], 'zoom': z}
             for c in cells
-            for z in ZOOM_LEVELS
+            for z in zoom_levels
         ]
 
         kj.total_cells  = len(cells)
         kj.status_message = (
             f'Grid: {grid_size}×{grid_size} = {len(cells)} cells × '
-            f'{len(ZOOM_LEVELS)} zooms = {len(all_tasks)} total searches'
+            f'{len(zoom_levels)} zooms = {len(all_tasks)} total searches'
         )
         await kj.asave()
 
         log.info('pipeline.start',
                  keyword=keyword,
                  cells=len(cells),
-                 zooms=ZOOM_LEVELS,
+                 zooms=zoom_levels,
                  total_tasks=len(all_tasks))
 
         # ── Step 4: ALL tasks fire simultaneously ─────────────────
@@ -682,7 +694,7 @@ async def run_keyword_pipeline(keyword_job_id: int):
         kj.status_message  = (
             f'✓ {saved_count} places in {total_time}s | '
             f'HTTP success: {http_success_pct}% | '
-            f'{len(ZOOM_LEVELS)} zoom levels searched'
+            f'{len(zoom_levels)} zoom levels searched'
         )
         kj.completed_at = timezone.now()
         await kj.asave()
@@ -692,7 +704,7 @@ async def run_keyword_pipeline(keyword_job_id: int):
                  total=saved_count,
                  time_sec=total_time,
                  http_pct=http_success_pct,
-                 zoom_levels=ZOOM_LEVELS)
+                 zoom_levels=zoom_levels)
 
     except Exception as e:
         kj.status         = 'failed'
