@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Omega Command | Clearance Gateway</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #050505;
+            --surface: #0d0d0d;
+            --border: #1a1a1a;
+            --primary: #f59e0b;
+            --primary-glow: rgba(245, 158, 11, 0.1);
+            --text-main: #e2e2e2;
+            --text-muted: #525252;
+            --danger: #991b1b;
+        }
+
+        * { margin:0; padding:0; box-sizing:border-box; }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            font-family: 'JetBrains Mono', monospace;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .gateway-container {
+            width: 100%;
+            max-width: 450px;
+            padding: 40px;
+            position: relative;
+        }
+
+        .corner {
+            position: absolute; width: 20px; height: 20px; border-color: var(--primary); border-style: solid; opacity: 0.5;
+        }
+        .top-left { top:0; left:0; border-width: 2px 0 0 2px; }
+        .top-right { top:0; right:0; border-width: 2px 2px 0 0; }
+        .bottom-left { bottom:0; left:0; border-width: 0 0 2px 2px; }
+        .bottom-right { bottom:0; right:0; border-width: 0 2px 2px 0; }
+
+        .terminal-header {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 32px;
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+        }
+
+        .status-header {
+            font-size: 1.25rem;
+            font-weight: 800;
+            margin-bottom: 4px;
+            color: #fff;
+            letter-spacing: -0.02em;
+        }
+
+        .status-sub {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 48px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+
+        .input-group { margin-bottom: 24px; text-align: left; }
+        .input-label { 
+            font-size: 0.65rem; 
+            text-transform: uppercase; 
+            font-weight: 800; 
+            color: var(--text-muted); 
+            margin-bottom: 8px; 
+            display: block; 
+        }
+
+        .clearance-input {
+            width: 100%;
+            padding: 14px 16px;
+            background: #000;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            outline: none;
+            transition: all 0.2s;
+        }
+        .clearance-input:focus { border-color: var(--primary); box-shadow: 0 0 15px var(--primary-glow); }
+
+        .btn-access {
+            width: 100%;
+            padding: 16px;
+            background: transparent;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+            border-radius: 4px;
+            font-weight: 800;
+            font-size: 0.8rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            transition: all 0.2s;
+            margin-top: 12px;
+        }
+        .btn-access:hover { background: var(--primary); color: #000; box-shadow: 0 0 20px var(--primary-glow); }
+
+        .error-overlay {
+            margin-top: 24px;
+            padding: 12px;
+            border: 1px solid var(--danger);
+            color: #fca5a5;
+            font-size: 0.7rem;
+            background: rgba(153, 27, 27, 0.1);
+            text-transform: uppercase;
+        }
+
+        .footer-note {
+            margin-top: 48px;
+            font-size: 0.6rem;
+            color: var(--text-muted);
+            text-align: center;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="gateway-container">
+        <div class="corner top-left"></div>
+        <div class="corner top-right"></div>
+        <div class="corner bottom-left"></div>
+        <div class="corner bottom-right"></div>
+
+        <div class="terminal-header">
+            <span>TERMINAL_ID: {{ request.META.REMOTE_ADDR }}</span>
+            <span>SECURE_SESSION_v4.2</span>
+        </div>
+
+        {% if step == 1 %}
+            <div class="status-header">ADMIN_IDENTIFICATION</div>
+            <div class="status-sub">Please provide your authorized credentials</div>
+
+            <form method="POST">
+                {% csrf_token %}
+                <div class="input-group">
+                    <label class="input-label">ADMIN_EMAIL</label>
+                    <input type="email" name="email" class="clearance-input" placeholder="name@example.com" required autofocus 
+                           style="padding: 14px; font-size: 1rem;">
+                </div>
+                <button type="submit" class="btn-access">Dispatch Access Token</button>
+            </form>
+        {% else %}
+            <div class="status-header">VERIFICATION_STATION</div>
+            <div class="status-sub">Check your terminal for the dispatch code</div>
+
+            <form method="POST">
+                {% csrf_token %}
+                <div class="input-group">
+                    <label class="input-label">OTP_TOKEN</label>
+                    <input type="text" name="otp" class="clearance-input" placeholder="XXXXXX" maxlength="6" required autofocus 
+                           style="text-align: center; letter-spacing: 0.5em; font-size: 1.2rem; padding: 14px;">
+                </div>
+                
+                <div class="input-group">
+                    <label class="input-label">MASTER_PASSWORD</label>
+                    <input type="password" name="password" class="clearance-input" placeholder="••••••••" required
+                           style="padding: 14px; font-size: 1.2rem;">
+                </div>
+                
+                <button type="submit" class="btn-access">Verify & Unlock</button>
+            </form>
+        {% endif %}
+
+        {% if error %}
+            <div class="error-overlay">
+                [SYSTEM_ERROR]: {{ error }}
+            </div>
+        {% endif %}
+
+        <div class="footer-note">
+            ACCESS RESTRICTED TO OMEGA-LEVEL OPERATIVES. UNAUTHORIZED ATTEMPTS ARE LOGGED AND TRACED.
+        </div>
+    </div>
+</body>
+</html>

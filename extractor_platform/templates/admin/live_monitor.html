@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Activity Monitor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --bg: #f8fafc;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            margin: 0;
+            padding: 40px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+
+        .title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2rem;
+            font-weight: 800;
+        }
+
+        .refresh-tag {
+            background: white;
+            padding: 8px 16px;
+            border-radius: 99px;
+            border: 1px solid var(--border);
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            background: var(--success);
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.5); opacity: 0.5; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .job-card {
+            background: white;
+            border-radius: 20px;
+            padding: 32px;
+            border: 1px solid var(--border);
+            margin-bottom: 24px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+        }
+
+        .job-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 24px;
+        }
+
+        .keyword-pill {
+            background: #f1f5f9;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+
+        .progress-container {
+            margin-top: 20px;
+        }
+
+        .progress-meta {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .bar-bg {
+            height: 12px;
+            background: #f1f5f9;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary), #8b5cf6);
+            transition: width 1s ease-in-out;
+        }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px dashed var(--border);
+        }
+
+        .mini-stat {
+            text-align: center;
+        }
+
+        .mini-label {
+            font-size: 0.75rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 4px;
+        }
+
+        .mini-value {
+            font-weight: 800;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.2rem;
+        }
+    </style>
+    <script>
+        // Auto refresh every 5 seconds
+        setInterval(() => {
+            window.location.reload();
+        }, 5000);
+    </script>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <h1 class="title">Live Extraction Monitor</h1>
+            <p style="color: #64748b;">Monitoring system throughput and active grid searches.</p>
+        </div>
+        <div class="refresh-tag">
+            <div class="dot"></div>
+            Live View (5s refresh)
+        </div>
+    </div>
+
+    {% if not active_jobs %}
+    <div style="text-align: center; padding: 80px; background: white; border-radius: 20px; border: 1px solid var(--border);">
+        <p style="color: #64748b; font-size: 1.1rem;">No active scraping jobs right now.</p>
+        <a href="/" style="color: var(--primary); text-decoration: none; font-weight: 700; margin-top: 10px; display: inline-block;">Start a new search</a>
+    </div>
+    {% endif %}
+
+    {% for job in active_jobs %}
+    <div class="job-card">
+        <div class="job-header">
+            <div>
+                <span style="color: #64748b; font-size: 0.8rem; font-weight: 700;">JOB #{{ job.id }}</span>
+                <h2 style="font-family: 'Outfit'; margin: 4px 0;">{{ job.location }}</h2>
+            </div>
+            <div style="text-align: right;">
+                <span class="keyword-pill" style="background: #eef2ff; color: var(--primary);">{{ job.strategy|upper }} MODE</span>
+                <div style="margin-top: 8px; font-size: 0.8rem; color: #64748b;">Started {{ job.created_at|timesince }} ago</div>
+            </div>
+        </div>
+
+        {% for kj in job.keyword_jobs.all %}
+        <div class="progress-container">
+            <div class="progress-meta">
+                <span>Searching: <b>{{ kj.keyword|default:"..." }}</b></span>
+                <span>{{ kj.progress_percent|default:0 }}% Complete</span>
+            </div>
+            <div class="bar-bg">
+                <div class="bar-fill" style="width: {{ kj.progress_percent|default:0 }}%"></div>
+            </div>
+            <div class="stats-row">
+                <div class="mini-stat">
+                    <div class="mini-label">Cells Done</div>
+                    <div class="mini-value">{{ kj.cells_done }} / {{ kj.total_cells }}</div>
+                </div>
+                <div class="mini-stat">
+                    <div class="mini-label">Results Found</div>
+                    <div class="mini-value" style="color: var(--success);">{{ kj.total_extracted }}</div>
+                </div>
+                <div class="mini-stat">
+                    <div class="mini-label">Status</div>
+                    <div class="mini-value" style="font-size: 0.9rem; color: var(--primary);">{{ kj.status }}</div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endfor %}
+
+    <div style="margin-top: 40px; display: flex; gap: 24px;">
+        <div style="flex: 1; background: #1e293b; color: white; padding: 32px; border-radius: 20px;">
+            <p style="font-size: 0.8rem; opacity: 0.7; text-transform: uppercase; font-weight: 700;">System Throughput</p>
+            <h3 style="font-family: 'Outfit'; font-size: 2rem; margin: 8px 0;">{{ results_last_hour }} <span style="font-size: 1rem; opacity: 0.6;">records/hr</span></h3>
+            <p style="font-size: 0.85rem; opacity: 0.8;">Average across all active proxies.</p>
+        </div>
+        <div style="flex: 1; background: white; padding: 32px; border-radius: 20px; border: 1px solid var(--border);">
+            <a href="/intel/dashboard/" style="text-decoration: none; color: inherit;">
+                <p style="font-size: 0.8rem; color: #64748b; text-transform: uppercase; font-weight: 700;">Back to Dashboard</p>
+                <h3 style="font-family: 'Outfit'; font-size: 1.5rem; margin: 8px 0; color: var(--primary);">Full System Stats →</h3>
+            </a>
+        </div>
+    </div>
+</body>
+</html>

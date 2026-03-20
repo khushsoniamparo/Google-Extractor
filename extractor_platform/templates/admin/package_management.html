@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription Management | Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --surface-hover: #f1f5f9;
+            --border: #e2e8f0;
+            --primary: #f59e0b;
+            --primary-glow: rgba(245, 158, 11, 0.08);
+            --success: #10b981;
+            --danger: #ef4444;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            line-height: 1.5;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            position: fixed; left: 0; top: 0; bottom: 0; width: 260px;
+            background: var(--surface);
+            border-right: 1px solid var(--border); padding: 40px 20px; z-index: 100;
+        }
+
+        .logo { font-size: 1.4rem; font-weight: 900; color: var(--text-main); margin-bottom: 48px; }
+        .logo span { color: var(--primary); }
+
+        .nav-item {
+            display: flex; align-items: center; gap: 12px; padding: 12px 16px; color: var(--text-muted);
+            text-decoration: none; border-radius: 8px; font-weight: 600; margin-bottom: 4px;
+            transition: all 0.2s; font-size: 0.9rem;
+        }
+        .nav-item:hover { background: var(--surface-hover); color: var(--text-main); }
+        .nav-item.active { background: var(--primary-glow); color: var(--primary); border-left: 3px solid var(--primary); border-radius: 0 8px 8px 0; margin-left: -20px; padding-left: 33px; }
+
+        .content { margin-left: 260px; padding: 64px; max-width: 1400px; }
+        @media (max-width: 1200px) {
+            .grid { grid-template-columns: 1fr !important; }
+        }
+
+        .header-section { margin-bottom: 48px; display: flex; justify-content: space-between; align-items: flex-end; }
+        h1 { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.04em; }
+
+        .grid { display: grid; grid-template-columns: 1fr 2fr; gap: 32px; align-items: start; }
+
+        .panel { background: var(--surface); border-radius: 16px; border: 1px solid var(--border); overflow: hidden; }
+        .panel-scroll { overflow-x: auto; }
+        .panel-header { padding: 24px 32px; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.01); }
+
+        .form-group { margin-bottom: 20px; padding: 0 32px; }
+        .form-group:first-child { margin-top: 32px; }
+        .form-group:last-child { margin-bottom: 32px; }
+
+        .label { display: block; font-size: 0.7rem; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 8px; }
+        
+        input, select, textarea {
+            width: 100%; background: var(--bg); border: 1px solid var(--border);
+            border-radius: 8px; padding: 12px 16px; color: var(--text-main); font-family: 'Outfit', sans-serif; font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        input:focus, select:focus { outline: none; border-color: var(--primary); }
+
+        .btn {
+            padding: 12px 24px; border-radius: 8px; font-weight: 800; cursor: pointer; border: none; font-size: 0.85rem; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px; text-transform: uppercase;
+        }
+        .btn-primary { background: var(--primary); color: #000; width: 100%; justify-content: center; }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-muted); }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+
+        .table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        .table th { text-align: left; padding: 20px 24px; font-size: 0.7rem; text-transform: uppercase; color: var(--text-muted); font-weight: 800; }
+        .table td { padding: 16px 24px; border-bottom: 1px solid var(--border); font-size: 0.9rem; color: var(--text-main); }
+        
+        .strat-tag { font-family: 'JetBrains Mono'; font-size: 0.7rem; background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px; margin-right: 4px; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">7Shouters<span>.</span>ADMIN</div>
+        <nav style="display: flex; flex-direction: column; height: calc(100% - 140px);">
+            <a href="{% url 'admin_dashboard' %}" class="nav-item">Monitor</a>
+            <a href="{% url 'user_management' %}" class="nav-item">Users</a>
+            <a href="{% url 'package_management' %}" class="nav-item active">Subscriptions</a>
+            <a href="{% url 'proxy_settings' %}" class="nav-item">Gateways</a>
+            
+            <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border);">
+                <a href="{% url 'admin_hub_logout' %}" class="nav-item" style="color: var(--danger); border: 1px solid rgba(153, 27, 27, 0.2)">
+                    Log Exit
+                </a>
+            </div>
+        </nav>
+    </div>
+
+    <div class="content">
+        <div class="header-section">
+            <div>
+                <h1>Subscription Packages</h1>
+                <p style="color:var(--text-muted);">View and manage your platform pricing and limits.</p>
+            </div>
+            <button onclick="showNewForm()" class="btn btn-primary" style="width: auto; padding: 12px 24px;">
+                <span>+</span> Register New Tier
+            </button>
+        </div>
+
+        <!-- Tier Manifest (Primary) -->
+        <div class="panel panel-scroll" style="margin-bottom: 32px;">
+            <div class="panel-header">
+                <h3 style="font-size: 1rem; font-weight: 800;">Active Tiers</h3>
+            </div>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Lead limit</th>
+                        <th>Scraping types</th>
+                        <th>Price</th>
+                        <th style="text-align:right;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pkg in packages %}
+                    <tr>
+                        <td style="font-weight: 800; color: var(--text-main); white-space: nowrap;">
+                            {{ pkg.name }}
+                            {% if pkg.is_featured %}<span style="color:var(--primary); font-size: 0.6rem; margin-left: 4px;">★</span>{% endif %}
+                        </td>
+                        <td style="font-family: 'JetBrains Mono'; font-weight: 700;">{{ pkg.lead_limit }}</td>
+                        <td style="white-space: nowrap;">
+                            {% for strat in pkg.grid_strategies_list %}
+                                <span class="strat-tag">{{ strat }}</span>
+                            {% endfor %}
+                        </td>
+                        <td style="white-space: nowrap;">{{ pkg.price }}</td>
+                        <td style="text-align:right;">
+                            <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                                <button onclick="editPkg('{{ pkg.id|escapejs }}', '{{ pkg.name|escapejs }}', '{{ pkg.lead_limit|escapejs }}', '{{ pkg.grid_strategies|escapejs }}', '{{ pkg.price|escapejs }}', '{{ pkg.features|escapejs }}', {{ pkg.is_featured|yesno:'true,false' }})" class="btn btn-outline" style="padding: 6px 12px; font-size: 0.7rem; min-width: 60px;">EDIT</button>
+                                <form method="POST" style="display: inline;" onsubmit="return confirm('Delete this package?')">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="pkg_id" value="{{ pkg.id }}">
+                                    <button type="submit" name="action" value="delete" class="btn btn-danger" style="padding: 6px 12px; font-size: 0.7rem; background: transparent; min-width: 60px;">PURGE</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" style="text-align:center; padding:48px; color:var(--text-muted);">NO TIERS REGISTERED</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Registry Entry Form (Conditional Hub) -->
+        <div class="panel" id="registry-form-panel" style="display: none; max-width: 800px; margin: 0 auto 60px auto; border: 1px solid var(--primary);">
+            <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 id="form-title" style="font-size: 1rem; font-weight: 800; color: var(--primary);">New Entry Override</h3>
+                <button onclick="resetForm()" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:1.2rem;">&times;</button>
+            </div>
+            <form method="POST" id="pkg-form" style="padding-top: 20px;">
+                {% csrf_token %}
+                <input type="hidden" name="pkg_id" id="pkg_id">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0;">
+                    <div class="form-group">
+                        <label class="label">Package Name</label>
+                        <input type="text" name="name" id="pkg_name" placeholder="e.g. VIP" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="label">Lead Limit</label>
+                        <input type="number" name="lead_limit" id="pkg_limit" value="5000" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="label">Scraping Types</label>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;">Write search, grid, or local (separated by comma)</div>
+                    <input type="text" name="grid_strategies" id="pkg_strats" value="search,grid" required>
+                </div>
+                <div class="form-group">
+                    <label class="label">Tier Features</label>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;">Comma separated: Email support, API access</div>
+                    <textarea name="features" id="pkg_features" style="height: 80px; resize: none;" placeholder="Feature 1, Feature 2..."></textarea>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0; align-items: center;">
+                    <div class="form-group">
+                        <label class="label">Price Display</label>
+                        <input type="text" name="price" id="pkg_price" placeholder="$99/mo">
+                    </div>
+                    <div class="form-group" style="display: flex; align-items: center; gap: 10px; margin-top: 15px;">
+                        <input type="checkbox" name="is_featured" id="pkg_featured" style="width: auto;">
+                        <label class="label" style="margin-bottom: 0;">Mark as Featured</label>
+                    </div>
+                </div>
+                <div class="form-group" style="display: flex; gap: 8px; margin-top: 10px;">
+                    <button type="submit" name="action" value="save" class="btn btn-primary" id="submit-btn">Commit Registry</button>
+                    <button type="button" onclick="resetForm()" class="btn btn-outline" id="cancel-btn">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script>
+        function showNewForm() {
+            resetForm();
+            document.getElementById('registry-form-panel').style.display = 'block';
+            document.getElementById('form-title').innerText = 'Register New Tier';
+            document.getElementById('submit-btn').innerText = 'Commit Registry';
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        }
+
+        function editPkg(id, name, limit, strats, price, features, isFeatured) {
+            document.getElementById('registry-form-panel').style.display = 'block';
+            document.getElementById('form-title').innerText = 'Update Tier Protocol: ' + name;
+            
+            document.getElementById('pkg_id').value = id;
+            document.getElementById('pkg_name').value = name;
+            document.getElementById('pkg_limit').value = limit;
+            document.getElementById('pkg_strats').value = strats;
+            document.getElementById('pkg_price').value = price;
+            document.getElementById('pkg_features').value = features;
+            document.getElementById('pkg_featured').checked = isFeatured;
+            
+            document.getElementById('submit-btn').innerText = 'Update Registry';
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+        }
+
+        function resetForm() {
+            document.getElementById('pkg_id').value = '';
+            document.getElementById('pkg-form').reset();
+            document.getElementById('registry-form-panel').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

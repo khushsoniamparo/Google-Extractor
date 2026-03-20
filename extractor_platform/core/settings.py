@@ -18,8 +18,12 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'accounts',
     'jobs',
+    'billing',
 ]
 
+# Razorpay Configuration
+RAZORPAY_KEY_ID = config('RAZORPAY_KEY_ID', default='rzp_test_placeholder')
+RAZORPAY_KEY_SECRET = config('RAZORPAY_KEY_SECRET', default='secret_placeholder')
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -66,4 +70,19 @@ SIMPLE_JWT = {
 }
 
 STATIC_URL = '/static/'
+STATICFILES_DIRS = [BASE_DIR / "static"]
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Email Configuration for Intel Hub OTP
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+# Note: User provided 'gmial.com' in request, applying as requested. 
+# If connection fails, check for typo.
+EMAIL_HOST_USER = 'sonikhush004@gmail.com'
+EMAIL_HOST_PASSWORD = 'oavv abcy dhvt lhhv'
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+ADMIN_HUB_EMAIL = 'sonikhush004@gmail.com'
+ADMIN_HUB_PASSWORD = 'OMISCIENT_ROOT_HUB' # High-level access secret

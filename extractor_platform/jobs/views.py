@@ -6,8 +6,14 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
-from .models import BulkJob, KeywordJob, Place
+from django.shortcuts import render
+from .models import BulkJob, KeywordJob, Place, Package
 from .tasks import start_bulk_job
+
+def home(request):
+    """The master console view."""
+    packages = Package.objects.all().order_by('price')
+    return render(request, 'index.html', {'packages': packages})
 
 
 class RegisterView(APIView):
@@ -56,7 +62,17 @@ class StartBulkJobView(APIView):
         """
         location = request.data.get('location', '').strip()
         keywords = request.data.get('keywords', [])
-        grid_size = int(request.data.get('grid_size', 8))
+        strategy = request.data.get('strategy', 'detailed').lower()
+
+        # Map strategy to grid size (Pillar 1 — Grid Density Fix)
+        strategy_map = {
+            'fast': 12,         # 144 cells
+            'detailed': 15,     # 225 cells
+            'deep': 20,         # 400 cells
+            'ultra': 25,        # 625 cells (Massive Coverage)
+            'geolocation': 2,   # 4 cells
+        }
+        grid_size = strategy_map.get(strategy, 12)
 
         # Validation
         if not location:
@@ -64,6 +80,23 @@ class StartBulkJobView(APIView):
                 {'error': 'location is required'},
                 status=400
             )
+
+        # Sanitation Helper (no html, no scripts, no weird characters)
+        import re
+        from django.utils.html import strip_tags
+        def sanitize(text):
+            if not isinstance(text, str): return ""
+            # 1. Remove HTML tags
+            text = strip_tags(text)
+            # 2. Keep only alphanumeric, spaces, hyphens, and ampersands
+            # (Allows "AT&T" or "7-Eleven" but blocks <scripts>, quotes, etc)
+            text = re.sub(r'[^a-zA-Z0-9\s\-\&]', '', text)
+            return text.strip()
+
+        location = sanitize(location)
+        if not location:
+            return Response({'error': 'invalid location input'}, status=400)
+
         if not keywords or not isinstance(keywords, list):
             return Response(
                 {'error': 'keywords must be a non-empty list'},
@@ -75,15 +108,45 @@ class StartBulkJobView(APIView):
                 status=400
             )
 
-        # Clean keywords
-        keywords = [k.strip() for k in keywords if k.strip()]
-        grid_size = max(3, min(grid_size, 15))
+        # Clean and Sanitize keywords
+        clean_keywords = []
+        for k in keywords:
+            sanitized = sanitize(k)
+            if sanitized:
+                clean_keywords.append(sanitized)
+        
+        keywords = clean_keywords
+        if not keywords:
+            return Response({'error': 'no valid keywords provided'}, status=400)
+
+        # --- Package Strategy Enforcement ---
+        # Check if the user's subscribed package allows this strategy
+        PREMIUM_STRATEGIES = {'deep', 'ultra'}
+        if strategy in PREMIUM_STRATEGIES:
+            try:
+                from accounts.models import UserProfile
+                profile = UserProfile.objects.select_related('package').get(user=request.user)
+                if profile.package:
+                    allowed = [s.strip() for s in profile.package.grid_strategies.split(',') if s.strip()]
+                else:
+                    allowed = ['fast', 'detailed']
+            except Exception:
+                allowed = ['fast', 'detailed']
+            
+            if strategy not in allowed:
+                return Response(
+                    {'error': f'Your current plan does not include the "{strategy}" strategy. Please upgrade your subscription to access Deep (20×20) and Ultra (25×25) grids.'},
+                    status=403
+                )
+
+        grid_size = max(1, min(grid_size, 30))
 
         # Create bulk job
         bulk_job = BulkJob.objects.create(
             user=request.user,
             location=location,
             grid_size=grid_size,
+            strategy=strategy,
         )
 
         # Create one KeywordJob per keyword
@@ -105,57 +168,12 @@ class StartBulkJobView(APIView):
             'bulk_job_id': bulk_job.id,
             'location': location,
             'keywords': keywords,
+            'strategy': strategy,
             'grid_size': grid_size,
-            'max_possible_per_keyword': grid_size * grid_size * 120,
+            'max_possible_per_keyword': grid_size * grid_size * 400,
             'status': 'running',
         }, status=201)
 
-
-class EstimateJobView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-        location = request.data.get('location', '').strip()
-        keywords = request.data.get('keywords', [])
-        grid_size = int(request.data.get('grid_size', 8))
-
-        if not location:
-            return Response({'error': 'location required'}, status=400)
-            
-        if not keywords:
-            keywords = []
-        elif isinstance(keywords, str):
-            keywords = [k.strip() for k in keywords.split(',') if k.strip()]
-
-        num_keywords = len(keywords) if keywords else 1
-        cells_per_grid = grid_size * grid_size
-        zooms_per_cell = 4  # hardcoded derived from ZOOM_LEVELS
-        tasks_per_keyword = cells_per_grid * zooms_per_cell
-        total_tasks = tasks_per_keyword * num_keywords
-
-        # Computation based on assumptions
-        http_concurrency = 30
-        playwright_concurrency = 5
-
-        total_time_sec = 10  # base start time for cookies/bounds
-        
-        for _ in range(num_keywords):
-            # http 
-            http_batches = max(1, tasks_per_keyword / http_concurrency)
-            kw_time = http_batches * 3.5  # ~3.5s per batch
-            
-            # playwrigtt fallback approx (say 15% get blocked)
-            pw_tasks = tasks_per_keyword * 0.15
-            pw_batches = max(1, pw_tasks / playwright_concurrency)
-            kw_time += pw_batches * 6.0
-            
-            total_time_sec += kw_time
-
-        return Response({
-            'total_cells': cells_per_grid * num_keywords,
-            'total_requests': total_tasks,
-            'estimated_seconds': int(total_time_sec)
-        })
 
 class BulkJobStatusView(APIView):
     permission_classes = [IsAuthenticated]
@@ -189,6 +207,7 @@ class BulkJobStatusView(APIView):
             'status_message': bulk_job.status_message,
             'total_extracted': bulk_job.total_extracted,
             'keywords': keyword_statuses,
+            'execution_mode': bulk_job.execution_mode,
             'created_at': bulk_job.created_at,
             'completed_at': bulk_job.completed_at,
         })
@@ -210,10 +229,28 @@ class BulkJobListView(APIView):
                 'keyword_job_id': kj.id,
                 'keyword': kj.keyword,
                 'status': kj.status,
+                'total_cells': kj.total_cells,
+                'cells_done': kj.cells_done,
+                'status_message': kj.status_message,
             } for kj in j.keyword_jobs.all()],
             'total_extracted': j.total_extracted,
+            'strategy': j.strategy,
+            'execution_mode': j.execution_mode,
             'created_at': j.created_at,
+            'completed_at': j.completed_at,
         } for j in jobs])
+
+
+class BulkJobDeleteView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, bulk_job_id):
+        try:
+            bulk_job = BulkJob.objects.get(id=bulk_job_id, user=request.user)
+            bulk_job.delete()
+            return Response({'status': 'deleted'}, status=200)
+        except BulkJob.DoesNotExist:
+            return Response({'error': 'Not found'}, status=404)
 
 
 class KeywordResultsView(APIView):
@@ -283,15 +320,3 @@ class ExportKeywordCSVView(APIView):
             })
 
         return response
-
-
-class BulkJobDeleteView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def delete(self, request, bulk_job_id):
-        try:
-            bulk_job = BulkJob.objects.get(id=bulk_job_id, user=request.user)
-            bulk_job.delete()
-            return Response({'status': 'deleted'})
-        except BulkJob.DoesNotExist:
-            return Response({'error': 'Not found'}, status=404)
