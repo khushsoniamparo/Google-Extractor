@@ -33,6 +33,35 @@
     --bg-dots: rgba(255, 255, 255, 0.05);
 }
 
+[data-theme="light"] {
+    /* PREMIUM SAAS LIGHT THEME */
+    --bg-color: #f8fafc;
+    --sidebar-bg: #ffffff;
+    --card-bg: rgba(255, 255, 255, 0.9);
+    --card-hover: rgba(241, 245, 249, 0.8);
+    
+    --text-main: #0f172a;
+    --text-muted: #475569;
+    --text-light: #64748b;
+
+    --accent: #4f46e5; 
+    --accent-hover: #4338ca;
+    --accent-soft: rgba(79, 70, 229, 0.1);
+    --accent-light: rgba(79, 70, 229, 0.15);
+
+    --success: #059669;
+    --danger: #e11d48;
+    --warning: #d97706;
+
+    --border: #e2e8f0;
+    --border-light: #f1f5f9;
+    --input-bg: #ffffff;
+    
+    --shadow-sm: 0 1px 2px 0 rgba(0,0,0,0.05);
+    --shadow: 0 10px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.01);
+    --bg-dots: rgba(0, 0, 0, 0.05);
+}
+
 [data-theme="dark"] {
     /* PROFESSIONAL SAAS DARK THEME */
     --bg-color: #0f172a;

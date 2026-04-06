@@ -182,7 +182,7 @@ def toggle_user_status(request, user_id):
 def reset_password(request, user_id):
     user = get_object_or_404(User, id=user_id)
     new_pw = json.loads(request.body).get('password')
-    if new_pw: user.set_password(new_pw); user.save(); return JsonResponse({'success': True})
+    if new_pw: user.set_password(new_pw); user.save(); return JsonResponse({'success': True, 'msg': 'Password reset successfully'})
     return JsonResponse({'error': 'No PW provided'}, status=400)
 
 @staff_member_required
@@ -226,7 +226,7 @@ def assign_package(request, user_id):
     p, _ = UserProfile.objects.get_or_create(user=u)
     p.package = get_object_or_404(Package, id=pkg_id) if pkg_id else None
     p.save()
-    return JsonResponse({'success': True})
+    return JsonResponse({'success': True, 'msg': 'Package assigned successfully'})
 
 @staff_member_required
 @admin_hub_required

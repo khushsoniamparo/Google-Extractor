@@ -3,13 +3,14 @@ import asyncio
 import random
 import structlog
 from django.utils import timezone
+from asgiref.sync import sync_to_async
 from playwright.async_api import async_playwright
 
 # Local imports
 from .boundary import get_city_boundary
 from .grid import build_grid
 from .cache import get_cached_results, set_cached_results
-from .search import search_grid_cell, scrapling_search_cell, scrapling_search_full
+from .search import search_grid_cell, scrapling_search_cell
 from .proxy_logic import get_active_proxy_url
 
 log = structlog.get_logger()
@@ -34,7 +35,7 @@ async def run_keyword_pipeline(keyword_job_id: int):
     
     try:
         # Step 0: Check for Proxy
-        proxy_url = get_active_proxy_url()
+        proxy_url = await sync_to_async(get_active_proxy_url)()
         if proxy_url:
             bj.execution_mode = 'proxy'
             log.info("pipeline.mode_active", mode="PROXY")
@@ -73,7 +74,7 @@ async def run_keyword_pipeline(keyword_job_id: int):
         kj.status = 'fetching_boundary'
         await kj.asave()
 
-        boundary = get_city_boundary(location)
+        boundary = await sync_to_async(get_city_boundary)(location)
         if not boundary:
             kj.status = 'failed'
             kj.status_message = f"Could not find coordinates for {location}"
@@ -107,36 +108,40 @@ async def run_keyword_pipeline(keyword_job_id: int):
 
         async def _process_cell_logic(i, cell, browser=None):
             nonlocal saved_count, processed_cells
-            async with semaphore:
-                # 🛑 CANCELLATION CHECK: stop if user clicked cancel
-                curr_status = await KeywordJob.objects.filter(id=keyword_job_id).avalues_list('status', flat=True)
-                if curr_status and curr_status[0] == 'cancelled':
-                    log.info("pipeline.cancelled_by_user", id=keyword_job_id)
-                    return
+            try:
+                async with semaphore:
+                    # 🛑 CANCELLATION CHECK: stop if user clicked cancel
+                    curr_status_obj = await KeywordJob.objects.only('status').aget(id=keyword_job_id)
+                    if curr_status_obj.status == 'cancelled':
+                        log.info("pipeline.cancelled_by_user", id=keyword_job_id)
+                        return
 
-                cached = await get_cached_results(kj.keyword, location, cell.index)
-                if cached is not None:
-                    await _save_extracted_places(cached)
-                else:
-                    if use_playwright:
-                        log.info("playwright.fetch_start", cell=cell.index)
-                        places = await search_grid_cell(browser, cell, kj.keyword, proxy_url=proxy_url)
+                    cached = await get_cached_results(kj.keyword, location, cell.index)
+                    if cached is not None:
+                        await _save_extracted_places(cached)
                     else:
-                        log.info("scrapling.fetch_start", cell=cell.index)
-                        places = await scrapling_search_cell(cell, kj.keyword, proxy_url=proxy_url)
-                    
-                    if places:
-                        await _save_extracted_places(places)
-                        await set_cached_results(kj.keyword, location, cell.index, places)
+                        if use_playwright:
+                            log.info("playwright.fetch_start", cell=cell.index)
+                            places = await search_grid_cell(browser, cell, kj.keyword, proxy_url=proxy_url)
+                        else:
+                            log.info("scrapling.fetch_start", cell=cell.index)
+                            places = await scrapling_search_cell(cell, kj.keyword, proxy_url=proxy_url)
+                        
+                        if places:
+                            await _save_extracted_places(places)
+                            await set_cached_results(kj.keyword, location, cell.index, places)
 
-            processed_cells += 1
-            kj.total_extracted = saved_count
-            kj.cells_done = processed_cells
-            kj.status_message = f'Extraction: {saved_count} found ({processed_cells}/{len(cells)} cells)'
-            if processed_cells % 5 == 0 or processed_cells == len(cells):
-                try: await kj.asave()
-                except: return # Job deleted
-            await asyncio.sleep(random.uniform(0.5, 1.5))
+                processed_cells += 1
+                kj.total_extracted = saved_count
+                kj.cells_done = processed_cells
+                kj.status_message = f'Extraction: {saved_count} found ({processed_cells}/{len(cells)} cells)'
+                if processed_cells % 5 == 0 or processed_cells == len(cells):
+                    try: await kj.asave()
+                    except: return # Job deleted
+                await asyncio.sleep(random.uniform(0.5, 1.5))
+            except Exception as e:
+                log.warning("pipeline.cell_error", cell_idx=cell.index, error=str(e))
+                processed_cells += 1
 
         if use_playwright:
             async with async_playwright() as p:

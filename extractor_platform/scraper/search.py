@@ -145,6 +145,9 @@ async def search_grid_cell(browser, cell, keyword, proxy_url=None):
 
         places = await extract_from_cards(page, cell)
 
+    except Exception as e:
+        log.warning("search.grid_error", cell=cell.index, error=str(e))
+        pass
     finally:
         await context.close()
     return places
