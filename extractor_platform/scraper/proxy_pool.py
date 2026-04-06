@@ -1,112 +1,85 @@
+import time
 import os
-import asyncio
 import random
 import structlog
-import httpx
-from itertools import cycle
+from dataclasses import dataclass
 
 log = structlog.get_logger()
 
-class ProxyPoolManager:
-    """
-    Manages a pool of rotating proxies for HTTP requests.
-    - Health checking: Automatically marks dead proxies and removes them.
-    - Rotation: Uses a healthy proxy for each request.
-    - DNS Caching: Handled natively by reusing the AsyncClient instances.
-    """
+@dataclass
+class ProxyState:
+    url: str
+    usage_count: int = 0
+    last_used: float = 0
+    is_cooling_down: bool = False
+
+class ProxyManager:
     def __init__(self):
-        self.proxies = []
-        self._load_proxies()
-        self.clients = {}  # Proxy URL -> httpx.AsyncClient
+        # Pillar 2: Pool of proxies. 
+        # User should populate this in the Admin panel or .env
+        self.raw_proxies = [
+            # PREMIER CHOICE: High-Quality Residential Proxy (Oxylabs/Smartproxy etc.)
+            # Format: http://customer-USERNAME-cc-IN:PASSWORD@pr.oxylabs.io:7777
+            # Replace USERNAME and PASSWORD with your actual credentials below:
+            'http://pnvmjqjm:t099twoh9t0l@31.59.20.176:6754', 
+        ]
         
-        if self.proxies:
-            self.proxy_cycle = cycle(self.proxies)
-        else:
-            self.proxy_cycle = None
-            
-        # Single client for direct connections if no proxies
-        self._direct_client = httpx.AsyncClient(
-            http2=True,
-            timeout=httpx.Timeout(15.0)
-        )
+        # Add from env for flexibility
+        env_proxies = os.getenv('SCRAPER_PROXIES', '')
+        if env_proxies:
+            for p in env_proxies.split(','):
+                p = p.strip()
+                if p and p not in self.raw_proxies:
+                    self.raw_proxies.append(p)
+                    
+        self.proxies = [ProxyState(url=p) for p in self.raw_proxies]
+        self.usage_limit = 10 # Pillar 3: Max 10 searches per proxy
+        self.cooldown_seconds = 7200 # Pillar 3: 2 hour cooldown
 
-    def _load_proxies(self):
-        proxy_env = os.environ.get("PROXY_LIST", "")
-        if proxy_env:
-            self.proxies = [p.strip() for p in proxy_env.split(',') if p.strip()]
-            log.info("proxy_pool.loaded_env", count=len(self.proxies))
-        else:
-            proxy_file = os.path.join(os.path.dirname(__file__), 'proxies.txt')
-            if os.path.exists(proxy_file):
-                with open(proxy_file, 'r', encoding='utf-8') as f:
-                    self.proxies = [line.strip() for line in f if line.strip()]
-                log.info("proxy_pool.loaded_file", count=len(self.proxies))
-            else:
-                log.warning("proxy_pool.no_proxies", message="Using direct connection (No proxies found)")
-
-    def get_client(self) -> httpx.AsyncClient:
-        """
-        Returns a healthy httpx.AsyncClient from the pool.
-        Uses connection pooling to provide DNS caching automatically!
-        """
-        if not self.proxy_cycle or not self.proxies:
-            return self._direct_client
-
-        proxy_url = next(self.proxy_cycle)
+    def get_proxy(self):
+        """Pillar 3: Smart pick - finds an available proxy with usage < limit or reset cooldowns."""
+        now = time.time()
         
-        if not proxy_url.startswith("http"):
-            proxy_url = f"http://{proxy_url}"
-            
-        if proxy_url not in self.clients:
-            # Create a dedicated HTTP/2 client for this proxy
-            # This allows multiplexing and persistent DNS cache
-            client = httpx.AsyncClient(
-                proxies=proxy_url,
-                http2=True,
-                timeout=httpx.Timeout(15.0),
-                verify=False,
-                limits=httpx.Limits(max_keepalive_connections=20, max_connections=100)
-            )
-            self.clients[proxy_url] = client
-            
-        return self.clients[proxy_url]
+        # 1. Reset cooldowns for proxies that have rested long enough
+        for p in self.proxies:
+            if p.is_cooling_down and (now - p.last_used) > self.cooldown_seconds:
+                p.is_cooling_down = False
+                p.usage_count = 0 
+                log.info("proxy.cooldown_ended", proxy=p.url[:25]+"...")
+
+        # 2. Filter for usable proxies
+        available = [p for p in self.proxies if not p.is_cooling_down]
         
-    async def check_health(self, proxy_url: str) -> bool:
-        """
-        Health checking logic. Removes the proxy if it fails.
-        """
-        client = self.clients.get(proxy_url)
-        if not client:
-            return False
-            
-        try:
-            resp = await client.get("https://www.google.com/generate_204", timeout=5.0)
-            return resp.status_code == 204
-        except Exception as e:
-            log.warning("proxy_pool.health_check_failed", proxy=proxy_url, error=str(e))
-            self._remove_proxy(proxy_url)
-            return False
-            
-    def _remove_proxy(self, proxy_url):
-        log.warning("proxy_pool.removing_proxy", proxy=proxy_url)
-        try:
-            # Strip http:// just in case
-            raw = proxy_url.replace("http://", "").replace("https://", "")
-            if raw in self.proxies:
-                self.proxies.remove(raw)
-            if proxy_url in self.proxies:
-                self.proxies.remove(proxy_url)
-            
-            # Recreate cycle with remaining proxies
-            if self.proxies:
-                self.proxy_cycle = cycle(self.proxies)
-            else:
-                self.proxy_cycle = None
-        except ValueError:
-            pass
+        if not available:
+            # Emergency: if everything is cooling, pick the one with longest rest
+            log.warning("proxy.all_cooling", count=len(self.proxies))
+            return random.choice(self.raw_proxies) if self.raw_proxies else None
 
-# Global Singleton Pool
-_pool = ProxyPoolManager()
+        # 3. Pick the one with the lowest usage to spread load
+        available.sort(key=lambda x: x.usage_count)
+        chosen = available[0]
+        
+        chosen.usage_count += 1
+        chosen.last_used = now
+        
+        if chosen.usage_count >= self.usage_limit:
+            chosen.is_cooling_down = True
+            log.info("proxy.entering_cooldown", proxy=chosen.url[:25]+"...")
+            
+        return chosen.url
 
-def get_httpx_client() -> httpx.AsyncClient:
-    return _pool.get_client()
+proxy_manager = ProxyManager()
+
+def get_random_proxy():
+    return proxy_manager.get_proxy()
+
+def get_proxy_dict():
+    p = proxy_manager.get_proxy()
+    return {'http': p, 'https': p} if p else None
+
+# Legacy global vars for compatibility
+PROXIES = proxy_manager.raw_proxies
+HTTP_PROXY = PROXIES[0] if PROXIES else None
+SOCKS5_PROXY = None # Will be derived from HTTP_PROXY if needed
+if HTTP_PROXY:
+    SOCKS5_PROXY = HTTP_PROXY.replace('http://', 'socks5://')

@@ -44,12 +44,15 @@ def start_bulk_job(bulk_job_id: int):
         # Monitor and finalize in a separate control thread
         def monitor_batch():
             concurrent.futures.wait(futures)
-            bulk_job.refresh_from_db()
-            bulk_job.status = 'completed'
-            bulk_job.status_message = f'Batch finished. Results analyzed.'
-            bulk_job.completed_at = timezone.now()
-            bulk_job.save()
-            log.info("bulk.completed", bulk_job_id=bulk_job_id)
+            try:
+                bulk_job.refresh_from_db()
+                bulk_job.status = 'completed'
+                bulk_job.status_message = f'Batch finished. Results analyzed.'
+                bulk_job.completed_at = timezone.now()
+                bulk_job.save()
+                log.info("bulk.completed", bulk_job_id=bulk_job_id)
+            except (BulkJob.DoesNotExist, Exception) as e:
+                log.warning("bulk.monitor_stopped", bulk_job_id=bulk_job_id, reason=str(e))
 
         import threading
         threading.Thread(target=monitor_batch, daemon=True).start()

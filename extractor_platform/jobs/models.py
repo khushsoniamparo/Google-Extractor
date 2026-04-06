@@ -13,6 +13,7 @@ class BulkJob(models.Model):
         ('running', 'Running'),
         ('completed', 'Completed'),
         ('failed', 'Failed'),
+        ('cancelled', 'Cancelled'),
     ]
 
     EXECUTION_MODES = [
@@ -20,11 +21,19 @@ class BulkJob(models.Model):
         ('proxy', 'Proxy Active'),
     ]
 
+    SEARCH_TYPES = [
+        ('city', 'City Search'),
+        ('state_country', 'State/Country Search'),
+    ]
+
     user = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name='bulk_jobs'
     )
     location = models.CharField(max_length=500)
     grid_size = models.IntegerField(default=8)
+    search_type = models.CharField(
+        max_length=20, choices=SEARCH_TYPES, default='city'
+    )
     strategy = models.CharField(
         max_length=50, 
         choices=[
@@ -44,6 +53,7 @@ class BulkJob(models.Model):
     )
     status_message = models.CharField(max_length=500, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     completed_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
@@ -68,11 +78,10 @@ class KeywordJob(models.Model):
     """
     STATUS = [
         ('pending', 'Pending'),
-        ('fetching_boundary', 'Fetching Boundary'),
-        ('building_grid', 'Building Grid'),
-        ('searching', 'Searching'),
+        ('running', 'Running'),
         ('completed', 'Completed'),
         ('failed', 'Failed'),
+        ('cancelled', 'Cancelled'),
     ]
 
     bulk_job = models.ForeignKey(
@@ -90,6 +99,7 @@ class KeywordJob(models.Model):
     total_extracted = models.IntegerField(default=0)
 
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     completed_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
@@ -187,9 +197,13 @@ class Package(models.Model):
     name = models.CharField(max_length=100)
     price = models.CharField(max_length=50, help_text="e.g. $49/mo")
     lead_limit = models.IntegerField(default=2000, help_text="Monthly leads")
-    grid_strategies = models.CharField(max_length=200, default="search,grid")
+    search_limit = models.IntegerField(default=5, help_text="Number of searches allowed")
+    grid_cell_limit = models.IntegerField(default=144, help_text="Max grid cells per search")
+    grid_strategies = models.CharField(max_length=200, default="fast,detailed", help_text="Allowed: fast, detailed, deep, ultra (comma separated)")
+    allowed_search_types = models.CharField(max_length=200, default="city", help_text="Allowed: city, state_country (comma separated)")
     features = models.TextField(blank=True, help_text="Comma-separated: Real-time scan, API access, etc.")
     description = models.TextField(blank=True)
+    tier_badge = models.CharField(max_length=50, default="Starter", help_text="e.g. Popular, Best Value, etc.")
     is_featured = models.BooleanField(default=False)
     
     created_at = models.DateTimeField(auto_now_add=True)
@@ -201,6 +215,10 @@ class Package(models.Model):
     @property
     def grid_strategies_list(self):
         return [s.strip() for s in self.grid_strategies.split(',') if s.strip()]
+
+    @property
+    def allowed_search_types_list(self):
+        return [t.strip() for t in self.allowed_search_types.split(',') if t.strip()]
 
     @property
     def features_list(self):
@@ -215,25 +233,47 @@ class ServerPressure(models.Model):
     def __str__(self):
         return f"Pressure @ {self.timestamp}: {self.active_jobs} jobs"
 
-from django.db.models.signals import pre_delete
-from django.dispatch import receiver
-from django.db import connection
+class SearchedCell(models.Model):
+    """Tracks which grid cells have already been searched to prevent double-dipping."""
+    keyword_job = models.ForeignKey(KeywordJob, on_delete=models.CASCADE, related_name='searched_cells')
+    cell_index = models.IntegerField()
+    status = models.CharField(max_length=20, default='completed')
+    found_count = models.IntegerField(default=0)
+    scraped_at = models.DateTimeField(auto_now_add=True)
 
-@receiver(pre_delete, sender=KeywordJob)
-def clear_searched_cells(sender, instance, **kwargs):
-    """
-    Clears the 'jobs_searchedcell' ghost table before a KeywordJob is deleted.
-    This prevents FOREIGN KEY constraint failures since this table isn't 
-    formally managed by Django and won't normally cascade.
-    """
-    try:
-        with connection.cursor() as cursor:
-            # Safely check for table existence (SQLite syntax)
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='jobs_searchedcell'")
-            if cursor.fetchone():
-                cursor.execute("DELETE FROM jobs_searchedcell WHERE keyword_job_id = %s", [instance.id])
-    except Exception as e:
-        # We don't want to block deletion if the cleanup fails for minor reasons,
-        # but the FK check will block it anyway if we don't succeed.
-        # Log to terminal for oversight.
-        print(f"DEBUG: Failed to clear searched cells for KJ {instance.id}: {e}")
+    class Meta:
+        unique_together = ['keyword_job', 'cell_index']
+
+
+class LocationCache(models.Model):
+    """Persistent storage for Nominatim boundary lookups to avoid rate limiting."""
+    query = models.CharField(max_length=500, unique=True)
+    display_name = models.CharField(max_length=1000)
+    min_lat = models.FloatField()
+    max_lat = models.FloatField()
+    min_lng = models.FloatField()
+    max_lng = models.FloatField()
+    center_lat = models.FloatField()
+    center_lng = models.FloatField()
+    radius_meters = models.IntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Cache: {self.query}"
+
+
+class ScraperCache(models.Model):
+    """Persistent storage for individual cell results (replaces file-based cache)."""
+    # Using a composite key logic via indexes
+    keyword = models.CharField(max_length=500)
+    location = models.CharField(max_length=500)
+    cell_index = models.IntegerField()
+    
+    results_json = models.JSONField() # Persistent storage of the results list
+    scraped_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['keyword', 'location', 'cell_index']),
+        ]
+        unique_together = ['keyword', 'location', 'cell_index']

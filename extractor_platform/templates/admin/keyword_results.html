@@ -10,18 +10,17 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #09090b;
-            --surface: #18181b;
-            --surface-hover: #212124;
-            --border: #27272a;
-            --primary: #f59e0b;
-            --primary-glow: rgba(245, 158, 11, 0.15);
-            --success: #10b981;
-            --text-main: #fafafa;
-            --text-muted: #a1a1aa;
+            --bg: #f1f5f9;
+            --surface: #ffffff;
+            --surface-hover: #f8fafc;
+            --border: #e2e8f0;
+            --primary: #10b981;
+            --primary-glow: rgba(16, 185, 129, 0.05);
+            --success: #059669;
+            --danger: #ef4444;
+            --text-main: #334155;
+            --text-muted: #64748b;
         }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: 'Outfit', sans-serif;
@@ -33,7 +32,7 @@
 
         .sidebar {
             position: fixed; left: 0; top: 0; bottom: 0; width: 260px;
-            background: var(--surface);
+            background: #ffffff;
             border-right: 1px solid var(--border); padding: 40px 20px; z-index: 100;
         }
 
@@ -64,12 +63,20 @@
 </head>
 <body>
     <div class="sidebar">
-        <div class="logo">7Shouters<span>.</span>INTEL</div>
-        <nav>
-            <a href="/intel/dashboard/" class="nav-item">Monitor</a>
-            <a href="/intel/users/" class="nav-item active">Users</a>
-            <a href="/intel/packages/" class="nav-item">Subscriptions</a>
-            <a href="/intel/proxy/" class="nav-item">Gateways</a>
+        <div class="logo">Extractor<span>.</span>Admin</div>
+        <nav style="display: flex; flex-direction: column; height: calc(100% - 140px);">
+            <a href="{% url 'admin_dashboard' %}" class="nav-item">Dashboard</a>
+            <a href="{% url 'user_management' %}" class="nav-item">Users</a>
+            <a href="{% url 'package_management' %}" class="nav-item">Packages</a>
+            <a href="{% url 'proxy_settings' %}" class="nav-item">Proxies</a>
+            <a href="{% url 'payment_management' %}" class="nav-item">Payments</a>
+            <a href="{% url 'payment_settings' %}" class="nav-item">Settings</a>
+            
+            <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border);">
+                <a href="{% url 'admin_hub_logout' %}" class="nav-item" style="color: var(--danger);">
+                    Logout
+                </a>
+            </div>
         </nav>
     </div>
 

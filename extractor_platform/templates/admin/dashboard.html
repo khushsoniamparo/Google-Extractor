@@ -10,19 +10,17 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #f8fafc;
+            --bg: #f1f5f9;
             --surface: #ffffff;
-            --surface-hover: #f1f5f9;
+            --surface-hover: #f8fafc;
             --border: #e2e8f0;
-            --primary: #f59e0b;
-            --primary-glow: rgba(245, 158, 11, 0.08);
-            --success: #10b981;
+            --primary: #10b981;
+            --primary-glow: rgba(16, 185, 129, 0.05);
+            --success: #059669;
             --danger: #ef4444;
-            --text-main: #0f172a;
+            --text-main: #334155;
             --text-muted: #64748b;
         }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: 'Outfit', sans-serif;
@@ -34,9 +32,19 @@
 
         .sidebar {
             position: fixed; left: 0; top: 0; bottom: 0; width: 260px;
-            background: var(--surface);
+            background: #ffffff;
             border-right: 1px solid var(--border); padding: 40px 20px; z-index: 100;
         }
+
+        .panel { 
+            background: var(--surface); 
+            border-radius: 16px; 
+            border: 1px solid var(--border); 
+            overflow: hidden; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); 
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         .logo { font-size: 1.4rem; font-weight: 900; color: var(--text-main); margin-bottom: 48px; }
         .logo span { color: var(--primary); }

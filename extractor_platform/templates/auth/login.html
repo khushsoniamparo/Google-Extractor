@@ -1,0 +1,122 @@
+<div id="auth-view" class="view">
+    <div class="login-container">
+        <!-- Left Section: Info & Google Login -->
+        <div class="login-info-section">
+            <div style="margin-bottom: 24px;">
+                <img src="/static/images/logo.png" alt="Logo" style="width: 220px; margin-bottom: 24px;">
+                <h1 id="auth-title">LOGIN</h1>
+                <p id="auth-subtitle">Hey welcome back!<br>We hope you had a great day</p>
+                
+                <button id="btn-google-login" style="width: 240px; height: 52px; border-radius: 12px; border: 1.5px solid var(--border); background: var(--card-bg); color: var(--text-main); font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 12px; cursor: pointer; transition: all 0.3s; margin-bottom: 32px; box-shadow: var(--shadow-sm);">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" style="width: 20px;">
+                    Login with google
+                </button>
+
+                <div style="font-size: 0.95rem; color: var(--text-muted);">
+                    Not yet a member? <a href="#" style="color: var(--text-main); text-decoration: none; font-weight: 800; border-bottom: 2.5px solid var(--accent); transition: all 0.3s;">Sign Up</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Section: Forms -->
+        <div class="login-form-section">
+            <div class="auth-card">
+                <!-- Traditional Login Form -->
+                <form id="auth-form-classic" style="display: block;">
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; font-weight: 600;">Username</label>
+                        <input type="text" id="login-username" placeholder="E.g. khushsoni@gmail.com" required
+                            style="width: 100%; padding: 14px; border: 1.5px solid var(--border); border-radius: 14px; background: rgba(0,0,0,0.05);">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 28px;">
+                        <label style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; font-weight: 600;">Password</label>
+                        <input type="password" id="login-password" placeholder="••••••••" required
+                            style="width: 100%; padding: 14px; border: 1.5px solid var(--border); border-radius: 14px; background: rgba(0,0,0,0.05);">
+                    </div>
+                    <button type="submit" class="btn btn-blue" id="btn-login-classic"
+                        style="width: 100%; height: 50px; border-radius: 14px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">LOGIN</button>
+                    
+                    <div style="margin-top: 20px; text-align: center; display: flex; justify-content: center; gap: 16px; font-size: 0.8rem;">
+                        <a href="#" id="switch-to-phone" style="color: var(--accent); text-decoration: none; font-weight: 600; opacity: 0.7; transition: 0.2s;">Phone Login</a>
+                        <span style="color: var(--border);">|</span>
+                        <a href="#" id="switch-to-email" style="color: var(--accent); text-decoration: none; font-weight: 600; opacity: 0.7; transition: 0.2s;">Email Login</a>
+                    </div>
+                </form>
+
+                <!-- Email OTP Login -->
+                <form id="auth-form-email" style="display: none;">
+                    <div class="form-group" style="margin-bottom: 24px;">
+                        <label style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; font-weight: 600;">Email Address</label>
+                        <input type="email" id="login-email" placeholder="name@company.com" required
+                            style="width: 100%; padding: 14px; border: 1.5px solid var(--border); border-radius: 14px;">
+                    </div>
+                    <button type="submit" class="btn btn-blue" id="btn-login-email"
+                        style="width: 100%; height: 50px; border-radius: 14px; font-weight: 800;">GET CODE</button>
+                    <div style="margin-top: 20px; text-align: center;">
+                        <a href="#" class="switch-to-classic-btn" style="font-size: 0.85rem; color: var(--accent); text-decoration: none; font-weight: 600;">Back to Username Login</a>
+                    </div>
+                </form>
+
+                <!-- Phone Login -->
+                <form id="auth-form-phone" style="display: none;">
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; font-weight: 600;">Mobile Number</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" value="+91" disabled
+                                style="width: 60px; text-align: center; color: var(--text-muted); font-weight: 600; padding: 14px; border: 1.5px solid var(--border); border-radius: 14px;">
+                            <input type="tel" id="mobile-number" placeholder="10-digit number" required
+                                style="flex: 1; padding: 14px; border: 1.5px solid var(--border); border-radius: 14px;">
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 24px;">
+                        <div style="display: flex; gap: 20px; justify-content: center;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600;">
+                                <input type="radio" name="otp-method" value="sms" checked> SMS
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 600;">
+                                <input type="radio" name="otp-method" value="whatsapp"> WhatsApp
+                            </label>
+                        </div>
+                    </div>
+                    <div id="recaptcha-container" style="margin-bottom: 12px;"></div>
+                    <button type="submit" class="btn btn-blue" id="btn-send-otp"
+                        style="width: 100%; height: 50px; border-radius: 14px; font-weight: 800;">SEND OTP</button>
+                    <div style="margin-top: 16px; text-align: center;">
+                        <a href="#" class="switch-to-classic-btn" style="font-size: 0.85rem; color: var(--accent); text-decoration: none; font-weight: 600;">Back to Username Login</a>
+                    </div>
+                </form>
+
+                <!-- OTP Input -->
+                <form id="auth-form-otp" style="display: none;">
+                    <div class="form-group" style="margin-bottom: 24px;">
+                        <label style="font-size: 0.85rem; color: var(--text-muted); text-align: center; display: block; margin-bottom: 12px;">Enter 6-digit Code</label>
+                        <input type="text" id="otp-input" maxlength="6" placeholder="000000" required
+                            style="text-align: center; letter-spacing: 12px; font-size: 1.5rem; font-weight: 800; border-radius: 14px; height: 60px; width: 100%; border: 1.5px solid var(--border);">
+                        <div style="margin-top: 12px; font-size: 0.8rem; color: var(--text-muted); text-align: center;">
+                            <span id="resend-timer">00:30</span>
+                            <a href="#" id="resend-otp-btn" style="display: none; color: var(--accent); text-decoration: none; font-weight: 700;">Resend</a>
+                            <span style="margin: 0 4px;">•</span>
+                            <a href="#" id="change-number-btn" style="color: var(--accent); text-decoration: none; font-weight: 600;">Change</a>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-blue" id="btn-verify-otp"
+                        style="width: 100%; height: 50px; border-radius: 14px; font-weight: 800;">VERIFY</button>
+                </form>
+
+                <!-- Finalize Password -->
+                <form id="auth-form-password" style="display: none;">
+                    <div class="form-group" style="margin-bottom: 24px;">
+                        <input type="password" id="final-password" placeholder="Set Secure Password" required
+                            style="width: 100%; padding: 14px; border: 1.5px solid var(--border); border-radius: 14px;">
+                    </div>
+                    <button type="submit" class="btn btn-blue" id="btn-finish-auth"
+                        style="width: 100%; height: 50px; border-radius: 14px; font-weight: 800;">FINISH SETTING UP</button>
+                </form>
+
+                <div id="auth-error"
+                    style="color: var(--danger); background: var(--danger-bg); padding: 14px; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.2); font-size: 0.85rem; margin-top: 24px; display: none; text-align: center; font-weight: 500;">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

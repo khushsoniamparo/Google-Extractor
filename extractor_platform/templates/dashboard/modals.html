@@ -1,0 +1,229 @@
+<!-- High-Fidelity Payment Modal: Compact Edition -->
+<div id="payment-modal" style="display:none; position:fixed; inset:0; background:rgba(224, 231, 255, 0.7); z-index:2000; justify-content:center; align-items:center; backdrop-filter:blur(12px);">
+    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:24px; width:100%; max-width:720px; padding: 24px; box-shadow: 0 40px 100px rgba(79, 70, 229, 0.12); position: relative;">
+        
+        <!-- Logo/Header Row -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; gap: 6px; color: #3b82f6;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                <span style="font-weight: 800; font-size: 1.1rem; letter-spacing: -0.02em;">I/O</span>
+            </div>
+            <button class="btn" onclick="document.getElementById('payment-modal').style.display='none'" style="padding: 6px 14px; border-radius: 20px; background: rgba(59, 130, 246, 0.1); color: #3b82f6; border: none; font-weight: 700; font-size: 0.7rem;">Cancel</button>
+        </div>
+
+        <!-- Bill Bar (Smaller) -->
+        <div style="background: rgba(59, 130, 246, 0.05); border: 1.5px solid rgba(59, 130, 246, 0.2); border-radius: 12px; padding: 12px 20px; display: flex; align-items: center; margin-bottom: 24px; justify-content: space-between;">
+            <h3 style="margin: 0; color: #1d4ed8; font-size: 1rem; font-weight: 800;">Your bill</h3>
+            <div style="display: flex; gap: 20px; align-items: center; color: #1e3a8a; font-weight: 600; font-size: 0.75rem;">
+                <span id="pm-package-type">Selected Protocol</span>
+                <span id="pm-tier-label" style="opacity: 0.6;">Standard Tier</span>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span id="pm-calc" style="opacity: 0.8;">1 unit x $0</span>
+                    <span id="pm-total" style="font-weight: 800; color: #1d4ed8; font-size: 0.85rem;">= $0 (USD)</span>
+                </div>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1.1fr 1fr; gap: 32px;">
+            <!-- Left Side: Selection -->
+            <div>
+                <h2 style="font-size: 1.3rem; font-weight: 800; color: #1e3a8a; margin: 0 0 6px 0; letter-spacing: -0.03em;">Select a payment method</h2>
+                <p style="font-size: 0.75rem; color: #64748b; margin-bottom: 24px; font-weight: 500;">Choose your preferred extraction protocol funding method.</p>
+
+                <!-- Payment Options -->
+                <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px;">
+                    <!-- Razorpay -->
+                    <div class="pay-option active-method" onclick="setPayMethod('razorpay')" id="razorpay-option" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border: 2.5px solid #3b82f6; background: white; border-radius: 12px; cursor: pointer; transition: all 0.2s;">
+                        <span style="font-weight: 800; color: #1e3a8a; font-size: 0.85rem;">Razorpay</span>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/8/89/Razorpay_logo.svg" style="height: 12px;">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="3"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                        </div>
+                    </div>
+                    <!-- PayPal -->
+                    <div class="pay-option" onclick="setPayMethod('paypal')" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border: 1.5px solid #e2e8f0; border-radius: 12px; cursor: pointer; transition: all 0.2s;">
+                        <span style="font-weight: 700; color: #334155; font-size: 0.8rem;">PayPal</span>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/b/b5/PayPal.svg" style="height: 12px; opacity: 0.8;">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="3"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                        </div>
+                    </div>
+                    <!-- Paytm -->
+                    <div class="pay-option" onclick="setPayMethod('paytm')" style="display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; border: 1.5px solid #e2e8f0; border-radius: 12px; cursor: pointer; transition: all 0.2s;">
+                        <span style="font-weight: 700; color: #334155; font-size: 0.8rem;">Paytm</span>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/2/24/Paytm_Logo_%28standalone%29.svg" style="height: 14px; opacity: 0.8;">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="3"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn" style="padding: 14px 40px; background: #3b82f6; color: white; border: none; border-radius: 12px; font-weight: 800; font-size: 0.8rem; width: 100%; box-shadow: 0 10px 25px rgba(59, 130, 246, 0.4);" onclick="completeActualPayment()">Proceed payment</button>
+            </div>
+
+            <!-- Right Side: Card UI (Smaller) -->
+            <div id="card-visual-container" style="display: flex; flex-direction: column; justify-content: center;">
+                <div style="background: linear-gradient(135deg, #3b82f6, #2563eb); border-radius: 20px; padding: 24px; color: white; position: relative; overflow: hidden; height: 210px; box-shadow: 0 30px 60px rgba(37, 99, 235, 0.3);">
+                    <div style="position: absolute; top: -40px; right: -40px; width: 150px; height: 150px; border: 1px solid rgba(255,255,255,0.1); border-radius: 50%;"></div>
+                    <div style="position: absolute; top: 16px; right: 16px; display: flex; gap: 8px;">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg" style="height: 8px; filter: brightness(0) invert(1);">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/b/b7/MasterCard_Logo.svg" style="height: 12px;">
+                    </div>
+
+                    <div style="height: 100%; display: flex; flex-direction: column; justify-content: flex-end;">
+                        <div style="margin-bottom: 20px;">
+                            <label style="font-size: 0.55rem; opacity: 0.7; text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 2px;">Your Full name</label>
+                            <input type="text" id="v-card-name" placeholder="John Doe" style="background: transparent; border: none; border-bottom: 1px solid rgba(255,255,255,0.3); color: white; width: 100%; font-size: 0.8rem; outline: none; padding-bottom: 2px;">
+                        </div>
+                        <div style="margin-bottom: 20px;">
+                            <label style="font-size: 0.55rem; opacity: 0.7; text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 2px;">Card Number</label>
+                            <input type="text" id="v-card-num" placeholder="0000 0000 0000 0000" style="background: transparent; border: none; border-bottom: 1px solid rgba(255,255,255,0.3); color: white; width: 100%; font-size: 0.95rem; font-weight: 700; outline: none; padding-bottom: 2px; letter-spacing: 0.1em;">
+                        </div>
+                        <div style="display: flex; gap: 24px;">
+                            <div style="flex: 1;">
+                                <label style="font-size: 0.55rem; opacity: 0.7; text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 2px;">Expire date</label>
+                                <input type="text" placeholder="MM/YY" style="background: transparent; border: none; border-bottom: 1px solid rgba(255,255,255,0.3); color: white; width: 100%; font-size: 0.8rem; outline: none; padding-bottom: 2px;">
+                            </div>
+                            <div style="flex: 1;">
+                                <label style="font-size: 0.55rem; opacity: 0.7; text-transform: uppercase; font-weight: 700; display: block; margin-bottom: 2px;">CVC</label>
+                                <input type="text" placeholder="***" style="background: transparent; border: none; border-bottom: 1px solid rgba(255,255,255,0.3); color: white; width: 100%; font-size: 0.8rem; outline: none; padding-bottom: 2px;">
+                            </div>
+                        </div>
+
+                        <!-- Chip -->
+                        <div style="position: absolute; bottom: 24px; right: 24px; width: 36px; height: 28px; background: rgba(255,255,255,0.15); border-radius: 6px; border: 1px solid rgba(255,255,255,0.2);">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top: 24px; text-align: center; font-size: 0.65rem; color: #94a3b8; font-weight: 600;">
+            Batin Studio © all right reserved 2023
+        </div>
+    </div>
+</div>
+
+<style>
+.pay-option:hover { background: white; border-color: #3b82f6 !important; transform: translateY(-2px); }
+.active-method { box-shadow: 0 10px 30px rgba(59, 130, 246, 0.1); }
+</style>
+
+<script>
+function setPayMethod(method) {
+    document.querySelectorAll('.pay-option').forEach(opt => {
+        opt.style.borderColor = '#e2e8f0';
+        opt.style.borderWidth = '1.5px';
+        opt.style.background = 'transparent';
+        opt.classList.remove('active-method');
+        // Un-highlight names
+        opt.querySelector('span').style.color = '#334155';
+        opt.querySelector('span').style.fontWeight = '700';
+    });
+    
+    // Fallback if event is not passed
+    const active = (window.event && window.event.currentTarget) || document.getElementById(method + '-option');
+    if (!active) return;
+
+    active.style.borderColor = '#3b82f6';
+    active.style.borderWidth = '2.5px';
+    active.style.background = 'white';
+    active.classList.add('active-method');
+    active.querySelector('span').style.color = '#1e3a8a';
+    active.querySelector('span').style.fontWeight = '800';
+
+    // Show/Hide card visual
+    const cardVisual = document.getElementById('card-visual-container');
+    if (method === 'razorpay') {
+        cardVisual.style.opacity = '1';
+        cardVisual.style.pointerEvents = 'all';
+    } else {
+        cardVisual.style.opacity = '0.3';
+        cardVisual.style.pointerEvents = 'none';
+    }
+}
+
+function completeActualPayment() {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+        alert("Please login to proceed with the purchase.");
+        return;
+    }
+
+    const packageId = window.selectedPackageId;
+    if (!packageId) return;
+
+    const activeMethodEl = document.querySelector('.active-method');
+    if (!activeMethodEl) {
+        alert("Please select a payment method.");
+        return;
+    }
+
+    let method = 'razorpay';
+    if (activeMethodEl.innerText.toLowerCase().includes('paypal')) method = 'paypal';
+
+    const btn = event.target || document.querySelector('.active-method').parentElement.nextElementSibling;
+    const ogText = btn.innerText;
+    btn.innerText = "Processing...";
+    btn.disabled = true;
+
+    if (method === 'razorpay') {
+        fetch('/api/billing/order/create/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ package_id: packageId })
+        }).then(r => r.json().then(data => ({ok: r.ok, data})))
+          .then(({ok, data}) => {
+              if (!ok || !data.order_id || data.order_id.includes('placeholder')) {
+                  alert(data.error || "Razorpay API error or unconfigured keys.");
+                  return;
+              }
+              document.getElementById('payment-modal').style.display = 'none';
+              const options = {
+                  "key": data.key_id,
+                  "amount": data.amount,
+                  "currency": data.currency,
+                  "name": "Platform Access",
+                  "description": `Upgrade to ${data.package_name}`,
+                  "order_id": data.order_id,
+                  "handler": async function (response) {
+                      const verifyRes = await fetch('/api/billing/order/verify/', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                          body: JSON.stringify({
+                              payment_id: response.razorpay_payment_id,
+                              order_id: response.razorpay_order_id,
+                              signature: response.razorpay_signature
+                          })
+                      });
+                      if (verifyRes.ok) {
+                          alert("Payment Verified! Your account has been upgraded.");
+                          window.location.reload();
+                      } else {
+                          alert("Verification failed.");
+                      }
+                  },
+                  "prefill": { "name": localStorage.getItem('username') || "" },
+                  "theme": { "color": "#2563eb" }
+              };
+              const rzp = new Razorpay(options);
+              rzp.open();
+          }).catch(e => alert("Could not reach API")).finally(() => { btn.innerText = ogText; btn.disabled = false; });
+    } else {
+        // PayPal Flow
+        fetch('/api/billing/paypal/create/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ package_id: packageId })
+        }).then(r => r.json().then(data => ({ok: r.ok, data})))
+          .then(({ok, data}) => {
+              if (!ok) {
+                  alert(data.error || "PayPal API error or unconfigured keys.");
+                  return;
+              }
+              document.getElementById('payment-modal').style.display = 'none';
+              alert("PayPal order created. To complete the payment flow, please integrate the PayPal JS SDK directly here with order_id: " + data.order_id);
+          }).catch(e => alert("Could not reach API")).finally(() => { btn.innerText = ogText; btn.disabled = false; });
+    }
+}
+</script>

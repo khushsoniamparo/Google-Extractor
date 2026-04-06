@@ -10,19 +10,17 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #f8fafc;
+            --bg: #f1f5f9;
             --surface: #ffffff;
-            --surface-hover: #f1f5f9;
+            --surface-hover: #f8fafc;
             --border: #e2e8f0;
-            --primary: #f59e0b;
-            --primary-glow: rgba(245, 158, 11, 0.08);
-            --success: #10b981;
+            --primary: #10b981;
+            --primary-glow: rgba(16, 185, 129, 0.05);
+            --success: #059669;
             --danger: #ef4444;
-            --text-main: #0f172a;
+            --text-main: #334155;
             --text-muted: #64748b;
         }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: 'Outfit', sans-serif;
@@ -34,7 +32,7 @@
 
         .sidebar {
             position: fixed; left: 0; top: 0; bottom: 0; width: 260px;
-            background: var(--surface);
+            background: #ffffff;
             border-right: 1px solid var(--border); padding: 40px 20px; z-index: 100;
         }
 
@@ -87,16 +85,18 @@
 </head>
 <body>
     <div class="sidebar">
-        <div class="logo">7Shouters<span>.</span>ADMIN</div>
+        <div class="logo">Extractor<span>.</span>Admin</div>
         <nav style="display: flex; flex-direction: column; height: calc(100% - 140px);">
-            <a href="{% url 'admin_dashboard' %}" class="nav-item">Monitor</a>
+            <a href="{% url 'admin_dashboard' %}" class="nav-item">Dashboard</a>
             <a href="{% url 'user_management' %}" class="nav-item active">Users</a>
-            <a href="{% url 'package_management' %}" class="nav-item">Subscriptions</a>
-            <a href="{% url 'proxy_settings' %}" class="nav-item">Gateways</a>
+            <a href="{% url 'package_management' %}" class="nav-item">Packages</a>
+            <a href="{% url 'proxy_settings' %}" class="nav-item">Proxies</a>
+            <a href="{% url 'payment_management' %}" class="nav-item">Payments</a>
+            <a href="{% url 'payment_settings' %}" class="nav-item">Settings</a>
             
             <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid var(--border);">
-                <a href="{% url 'admin_hub_logout' %}" class="nav-item" style="color: var(--danger); border: 1px solid rgba(153, 27, 27, 0.2)">
-                    Log Exit
+                <a href="{% url 'admin_hub_logout' %}" class="nav-item" style="color: var(--danger);">
+                    Logout
                 </a>
             </div>
         </nav>
@@ -113,7 +113,13 @@
                 <p style="color:var(--text-muted);">First Logged: {{ target_user.date_joined|date:"M d, Y" }}</p>
             </div>
             <div style="display: flex; gap: 12px;">
-                <button onclick="purgeSubscription('{{ target_user.id|escapejs }}')" class="btn btn-outline" style="border-color: var(--danger); color: var(--danger);">REMOVE PACKAGE</button>
+                <button 
+                  data-user-id="{{ target_user.id }}"
+                  data-username="{{ target_user.username }}"
+                  data-email="{{ target_user.email }}"
+                  data-phone="{{ profile.phone|default:'' }}"
+                  onclick="openEditFromData(this)"
+                  class="btn btn-outline" style="border-color: var(--primary); color: var(--primary);">EDIT DETAILS</button>
                 <button onclick="resetPassword('{{ target_user.id|escapejs }}')" class="btn btn-outline">RESET PASSWORD</button>
                 <div style="background:var(--surface); padding:10px 20px; border-radius:8px; border:1px solid var(--border); display: flex; align-items: center; gap: 12px;">
                     <div class="status-dot {% if target_user.is_active %}active{% else %}inactive{% endif %}"></div>
@@ -129,10 +135,15 @@
                 <div class="card-subtext">{{ target_user.email|default:"NO_SMTP_ASSOC" }}</div>
             </div>
 
-            <div class="info-card">
+            <div class="info-card" 
+                style="cursor: pointer;"
+                data-user-id="{{ target_user.id }}"
+                data-username="{{ target_user.username }}"
+                data-package-id="{{ profile.package.id|default:'' }}"
+                onclick="openPackageFromData(this)">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                     <div class="card-label">Pricing Tier</div>
-                    <a href="javascript:void(0)" onclick="openPackageModal('{{ target_user.id|escapejs }}', '{{ target_user.username|escapejs }}', '{{ profile.package.id|default:'' }}')" style="font-size: 0.65rem; color: var(--success); text-decoration: none; font-weight: 800; border: 1px solid rgba(16, 185, 129, 0.2); padding: 2px 6px; border-radius: 4px;">ALLOCATE</a>
+                    <div style="font-size: 0.65rem; color: var(--success); font-weight: 800; border: 1px solid rgba(16, 185, 129, 0.2); padding: 2px 6px; border-radius: 4px;">MANAGE</div>
                 </div>
                 <div class="card-value">
                     {{ job_stats.package_name|upper }}
@@ -149,6 +160,42 @@
                 <div class="card-value" style="color: var(--primary);">{{ job_stats.searches_left }} SEARCHES</div>
                 <div class="card-subtext">RECORDS FOUND: {{ job_stats.extracted }}</div>
             </div>
+        </div>
+
+        <!-- Payments Section -->
+        <div class="panel">
+            <div class="panel-header">
+                <h3 style="font-size: 1.1rem; font-weight: 800; letter-spacing: -0.02em;">Payment History</h3>
+                <span style="font-size: 0.75rem; color: var(--text-muted); font-family: 'JetBrains Mono';">{{ transactions.count }} PAYMENTS RECORDED</span>
+            </div>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Method</th>
+                        <th>Payment ID</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tx in transactions %}
+                    <tr>
+                        <td style="color: var(--text-muted);">{{ tx.created_at|date:"d M, H:i" }}</td>
+                        <td>
+                            {% if tx.payment_method == 'razorpay' %}
+                            <span style="color: #3395FF; font-weight: 800;">Razorpay</span>
+                            {% else %}
+                            <span style="color: #003087; font-weight: 800;">PayPal</span>
+                            {% endif %}
+                        </td>
+                        <td style="font-family: 'JetBrains Mono'; font-size: 0.8rem;">{{ tx.payment_id }}</td>
+                        <td style="font-weight: 800; color: var(--success);">{{ tx.amount }} {% if tx.paypal_order %}USD{% else %}INR{% endif %}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" style="text-align:center; padding: 40px; color: var(--text-muted);">No transactions recorded for this profile.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
 
         <div class="panel">
@@ -185,7 +232,7 @@
                                 </div>
                             </td>
                             <td style="text-align:right;">
-                                <a href="/omega-hq/keyword/{{ kj.id }}/results/" class="btn btn-outline" style="font-size: 0.65rem; letter-spacing: 0.05em; text-transform: uppercase;">Analyze Results</a>
+                                <a href="{% url 'admin_keyword_results' kj.id %}" class="btn btn-outline" style="font-size: 0.65rem; letter-spacing: 0.05em; text-transform: uppercase;">Analyze Results</a>
                             </td>
                         </tr>
                         {% endfor %}
@@ -197,6 +244,35 @@
                 </tbody>
             </table>
         </div>
+    </div>
+
+    <!-- Edit User Modal -->
+    <div id="edit-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center; backdrop-filter:blur(4px);">
+        <div class="panel" style="width:450px; padding:32px; border: 1px solid var(--border);">
+            <h2 style="margin-bottom:8px; font-size:1.25rem;">Edit Account Details</h2>
+            <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:24px;">Update information for <span id="edit-user-name-title" style="color:var(--primary); font-weight:700;"></span></p>
+            
+            <div style="margin-bottom:16px;">
+                <label style="display:block; font-size:0.7rem; font-weight:800; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px; letter-spacing:0.05em;">Username</label>
+                <input type="text" id="edit-username" style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text-main); padding:12px; border-radius:8px; font-family:'Outfit'; outline:none;">
+            </div>
+
+            <div style="margin-bottom:16px;">
+                <label style="display:block; font-size:0.7rem; font-weight:800; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px; letter-spacing:0.05em;">Email</label>
+                <input type="email" id="edit-email" style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text-main); padding:12px; border-radius:8px; font-family:'Outfit'; outline:none;">
+            </div>
+
+            <div style="margin-bottom:16px;">
+                <label style="display:block; font-size:0.7rem; font-weight:800; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px; letter-spacing:0.05em;">Phone Number</label>
+                <input type="text" id="edit-phone" style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text-main); padding:12px; border-radius:8px; font-family:'Outfit'; outline:none;">
+            </div>
+
+            <div style="display:flex; gap:12px; margin-top:32px;">
+                <button onclick="closeEditModal()" class="btn btn-outline" style="flex:1;">Cancel</button>
+                <button onclick="submitUserDetailsUpdate()" class="btn btn-primary" style="flex:1;">Save Details</button>
+            </div>
+        </div>
+    </div>
     </div>
 
         <!-- Package Allocation Modal -->
@@ -219,11 +295,67 @@
                     <button onclick="closePackageModal()" class="btn btn-outline" style="flex:1;">CANCEL</button>
                     <button onclick="submitPackageChange()" class="btn btn-primary" style="flex:1; background: var(--success); color: #000;">GRANT ACCESS</button>
                 </div>
+                {% if profile.package %}
+                <div style="margin-top: 16px; border-top: 1px solid var(--border); padding-top: 16px;">
+                    <button onclick="purgeSubscription('{{ target_user.id|escapejs }}')" class="btn btn-danger" style="width: 100%; background: transparent; color: var(--danger); border: 1px solid var(--danger);">REMOVE CURRENT PACKAGE</button>
+                </div>
+                {% endif %}
             </div>
         </div>
 
     <script>
         let currentUserId = null;
+
+        function openEditFromData(btn) {
+            currentUserId = btn.dataset.userId;
+            const username = btn.dataset.username;
+            const email = btn.dataset.email;
+            const phone = btn.dataset.phone;
+            
+            document.getElementById('edit-user-name-title').innerText = username;
+            document.getElementById('edit-username').value = username;
+            document.getElementById('edit-email').value = email;
+            document.getElementById('edit-phone').value = phone;
+            document.getElementById('edit-modal').style.display = 'flex';
+        }
+
+        function openPackageFromData(btn) {
+            currentUserId = btn.dataset.userId;
+            const username = btn.dataset.username;
+            const packageId = btn.dataset.packageId;
+            
+            document.getElementById('pkg-user-name').innerText = username;
+            document.getElementById('pkg-select').value = packageId || "";
+            document.getElementById('pkg-modal').style.display = 'flex';
+        }
+
+        function closeEditModal() {
+            document.getElementById('edit-modal').style.display = 'none';
+        }
+
+        async function submitUserDetailsUpdate() {
+            const username = document.getElementById('edit-username').value;
+            const email = document.getElementById('edit-email').value;
+            const phone = document.getElementById('edit-phone').value;
+
+            // Update Details
+            const res = await fetch(`/omega-hq/users/update-details/${currentUserId}/`, {
+                method: 'POST',
+                headers: { 
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username, email, phone })
+            });
+            const data = await res.json();
+
+            if(data.success) {
+                alert('Account details updated successfully');
+                location.reload();
+            } else {
+                alert(data.error || 'Update failed');
+            }
+        }
 
         function openPackageModal(userId, username, packageId) {
             currentUserId = userId;

@@ -1,5 +1,37 @@
 from django.contrib import admin
-from .models import BulkJob, KeywordJob, Place, Proxy
+from .models import BulkJob, KeywordJob, Place, Proxy, Package
+
+@admin.register(Package)
+class PackageAdmin(admin.ModelAdmin):
+    list_display = ('name', 'price', 'tier_badge', 'lead_limit', 'grid_cell_limit', 'is_featured')
+    list_editable = ('is_featured', 'tier_badge')
+    search_fields = ('name',)
+    
+    fieldsets = (
+        ('General Information', {
+            'fields': (('name', 'price'), 'tier_badge', 'description', 'is_featured')
+        }),
+        ('Resource Limits', {
+            'fields': ('lead_limit', 'search_limit', 'grid_cell_limit')
+        }),
+        ('Strategic Access', {
+            'fields': ('grid_strategies', 'allowed_search_types'),
+            'description': 'Specify allowed strategies (fast, detailed, deep, ultra) and search types (city, state_country) separated by commas.'
+        }),
+        ('Marketing & Styling', {
+            'fields': ('features',),
+            'description': 'Comma separated features to show on the landing page.'
+        }),
+    )
+
+    def has_delete_permission(self, request, obj=None):
+        """
+        Only allow deletion from the individual edit page (where obj is provided),
+        not from the main list view (where obj is None).
+        """
+        if obj is None:
+            return False
+        return super().has_delete_permission(request, obj)
 
 @admin.register(Proxy)
 class ProxyAdmin(admin.ModelAdmin):

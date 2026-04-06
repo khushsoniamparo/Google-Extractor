@@ -16,6 +16,7 @@ class GridCell:
     center_lng: float
     zoom: int = 14
     index: int = 0
+    display_name: str = ""
 
 
 def build_grid(boundary: dict, grid_size: int = 5) -> List[GridCell]:
@@ -50,6 +51,19 @@ def build_grid(boundary: dict, grid_size: int = 5) -> List[GridCell]:
             center_lat = (cell_min_lat + cell_max_lat) / 2
             center_lng = (cell_min_lng + cell_max_lng) / 2
 
+            # Dynamic Zoom Calculation
+            # 0.05 deg (~5km) -> 14z
+            # 0.5 deg (~55km) -> 11z
+            # 5 deg (~550km) -> 8z
+            import math
+            best_zoom = 14
+            if lat_step > 0:
+                # Heuristic: log2(120 / lat_step) + some constant
+                # 120 is roughly the world span. 
+                # This formula matches 0.05 to 14 and 1.0 to 10
+                best_zoom = int(round(11 - math.log2(lat_step)))
+                best_zoom = max(min(best_zoom, 16), 4) # Hard constraints
+
             cells.append(GridCell(
                 min_lat=cell_min_lat,
                 max_lat=cell_max_lat,
@@ -58,11 +72,13 @@ def build_grid(boundary: dict, grid_size: int = 5) -> List[GridCell]:
                 center_lat=center_lat,
                 center_lng=center_lng,
                 index=index,
+                zoom=best_zoom,
+                display_name=boundary.get('display_name', '')
             ))
             index += 1
 
     log.info("grid.built",
              grid_size=grid_size,
              total_cells=len(cells),
-             max_possible_results=len(cells) * 120)
+             max_possible_results=len(cells) * 400)
     return cells

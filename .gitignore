@@ -5,3 +5,6 @@ db.sqlite3
 .env
 debug_*.png
 test_*.log
+firebase-adminsdk.json
+firebase-adminsdk.json*
+*.sqlite3

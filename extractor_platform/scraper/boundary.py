@@ -6,79 +6,80 @@ log = structlog.get_logger()
 
 
 def get_city_boundary(location: str) -> dict:
-    from jobs.models import CachedBoundary
-
-    # Check DB cache first
-    try:
-        cached = CachedBoundary.objects.get(
-            location__iexact=location.strip()
-        )
+    """
+    Gets the most comprehensive bounding box for a location.
+    Checks Postgres LocationCache first, fallbacks to Nominatim.
+    """
+    from jobs.models import LocationCache
+    
+    # 1. CHECK CACHE
+    cached = LocationCache.objects.filter(query=location.lower()).first()
+    if cached:
+        log.info("boundary.cache_hit", location=location)
         return {
             'min_lat': cached.min_lat,
             'max_lat': cached.max_lat,
             'min_lng': cached.min_lng,
             'max_lng': cached.max_lng,
             'display_name': cached.display_name,
+            'radius_meters': cached.radius_meters,
+            'center_lat': cached.center_lat,
+            'center_lng': cached.center_lng
         }
-    except CachedBoundary.DoesNotExist:
-        pass
 
-    # Not cached — fetch from OpenStreetMap
-    boundary = _fetch_from_osm(location)
-
-    # Save for next time
-    CachedBoundary.objects.create(
-        location=location.strip(),
-        **boundary
-    )
-    return boundary
-
-
-def _fetch_from_osm(location: str) -> dict:
-    """
-    Gets the bounding box of any city in the world
-    using Nominatim (OpenStreetMap) — completely free.
-    Returns: {min_lat, max_lat, min_lng, max_lng}
-    """
     url = "https://nominatim.openstreetmap.org/search"
-    params = {
-        'q': location,
-        'format': 'json',
-        'limit': 1,
-        'featuretype': 'city',
-    }
-    headers = {
-        'User-Agent': 'ExtractorPlatform/1.0'
-    }
+    headers = {'User-Agent': 'ExtractorPlatform/1.0'}
+    
+    variants = [location, f"{location} district", f"{location} city"]
+    best_result = None
+    max_area = -1
 
-    try:
-        response = requests.get(url, params=params, headers=headers, timeout=10)
-        data = response.json()
-
-        if not data:
-            # Try without featuretype restriction
-            params.pop('featuretype')
+    for q in variants:
+        try:
+            params = {'q': q, 'format': 'json', 'limit': 1}
             response = requests.get(url, params=params, headers=headers, timeout=10)
             data = response.json()
+            
+            if data:
+                bbox = data[0]['boundingbox']
+                # Rough area calculation
+                area = (float(bbox[1]) - float(bbox[0])) * (float(bbox[3]) - float(bbox[2]))
+                if area > max_area:
+                    max_area = area
+                    best_result = {
+                        'min_lat': float(bbox[0]),
+                        'max_lat': float(bbox[1]),
+                        'min_lng': float(bbox[2]),
+                        'max_lng': float(bbox[3]),
+                        'display_name': data[0]['display_name'],
+                        'area': area
+                    }
+        except Exception as e:
+            continue
 
-        if not data:
-            raise Exception(f"Location not found: {location}")
+    if not best_result:
+        raise Exception(f"Location not found: {location}")
 
-        bbox = data[0]['boundingbox']
-        # bbox = [min_lat, max_lat, min_lng, max_lng]
-        result = {
-            'min_lat': float(bbox[0]),
-            'max_lat': float(bbox[1]),
-            'min_lng': float(bbox[2]),
-            'max_lng': float(bbox[3]),
-            'display_name': data[0]['display_name'],
-        }
+    # Calculate center and radius
+    center_lat = (best_result['min_lat'] + best_result['max_lat']) / 2
+    center_lng = (best_result['min_lng'] + best_result['max_lng']) / 2
+    
+    import math
+    lat_dist = abs(best_result['max_lat'] - best_result['min_lat']) * 111000
+    lng_dist = abs(best_result['max_lng'] - best_result['min_lng']) * 111000 * math.cos(math.radians(center_lat))
+    radius_meters = max(int(math.sqrt(lat_dist**2 + lng_dist**2) / 2 * 1.2), 5000)
+    
+    # 2. SAVE TO CACHE
+    LocationCache.objects.create(
+        query=location.lower(),
+        display_name=best_result['display_name'],
+        min_lat=best_result['min_lat'],
+        max_lat=best_result['max_lat'],
+        min_lng=best_result['min_lng'],
+        max_lng=best_result['max_lng'],
+        center_lat=center_lat,
+        center_lng=center_lng,
+        radius_meters=radius_meters
+    )
 
-        log.info("boundary.fetched",
-                 location=location,
-                 bbox=result)
-        return result
-
-    except Exception as e:
-        log.error("boundary.failed", location=location, error=str(e))
-        raise
+    return {**best_result, 'center_lat': center_lat, 'center_lng': center_lng, 'radius_meters': radius_meters}

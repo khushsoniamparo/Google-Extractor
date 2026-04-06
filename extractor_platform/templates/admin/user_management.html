@@ -10,20 +10,18 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #f8fafc;
+            --bg: #f1f5f9;
             --surface: #ffffff;
-            --surface-hover: #f1f5f9;
+            --surface-hover: #f8fafc;
             --border: #e2e8f0;
-            --primary: #f59e0b;
-            --primary-glow: rgba(245, 158, 11, 0.08);
-            --success: #10b981;
+            --primary: #10b981;
+            --primary-glow: rgba(16, 185, 129, 0.05);
+            --success: #059669;
             --danger: #ef4444;
             --warning: #f59e0b;
-            --text-main: #0f172a;
+            --text-main: #334155;
             --text-muted: #64748b;
         }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
             font-family: 'Outfit', sans-serif;
@@ -35,7 +33,7 @@
 
         .sidebar {
             position: fixed; left: 0; top: 0; bottom: 0; width: 260px;
-            background: var(--surface);
+            background: #ffffff;
             border-right: 1px solid var(--border); padding: 40px 20px; z-index: 100;
         }
 
@@ -63,12 +61,13 @@
         .stats-label { font-size: 0.7rem; text-transform: uppercase; color: var(--text-muted); font-weight: 800; letter-spacing: 0.05em; }
         .stats-value { font-size: 1.5rem; font-weight: 900; color: var(--primary); font-family: 'JetBrains Mono'; }
 
-        .panel { background: var(--surface); border-radius: 16px; border: 1px solid var(--border); overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .panel { background: var(--surface); border-radius: 20px; border: 1px solid var(--border); overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); backdrop-filter: blur(12px); }
         .panel-scroll { overflow-x: auto; }
 
         .table { width: 100%; border-collapse: collapse; }
         .table th { text-align: left; padding: 20px 32px; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); background: var(--bg); font-weight: 800; border-bottom: 1px solid var(--border); }
         .table td { padding: 20px 32px; border-bottom: 1px solid var(--border); font-size: 0.9rem; color: var(--text-main); vertical-align: middle; }
+        .table tr { cursor: pointer; transition: background 0.2s; }
         .table tr:hover td { background: var(--surface-hover); }
 
         .btn { 
@@ -91,6 +90,28 @@
 
         .user-link { text-decoration: none; color: var(--primary); font-weight: 700; transition: color 0.2s; }
         .user-link:hover { opacity: 0.8; }
+
+        /* Modal Styles */
+        .modal {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px);
+            display: none; align-items: center; justify-content: center; z-index: 1000;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: #ffffff; width: 100%; max-width: 450px; border-radius: 20px;
+            padding: 40px; position: relative; box-shadow: 0 50px 100px -20px rgba(0,0,0,0.5);
+        }
+        .modal-title { font-size: 1.5rem; font-weight: 800; margin-bottom: 8px; }
+        .modal-sub { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 32px; }
+        
+        .form-group { margin-bottom: 20px; }
+        .form-label { display: block; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
+        .form-input {
+            width: 100%; padding: 14px 16px; background: var(--bg); border: 1px solid var(--border);
+            border-radius: 8px; outline: none; font-family: 'Outfit'; font-size: 0.95rem; transition: all 0.2s;
+        }
+        .form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px var(--primary-glow); }
     </style>
 </head>
 <body>
@@ -118,9 +139,12 @@
                 <h1>User Ecosystem</h1>
                 <p class="subtitle">Platform occupancy and permission authority control.</p>
             </div>
-            <div class="stats-pill">
-                <span class="stats-label">Total Subjects</span>
-                <span class="stats-value">{{ page_obj.paginator.count }}</span>
+            <div style="display: flex; gap: 16px;">
+                <button onclick="openModal()" class="btn btn-success" style="padding: 12px 24px; font-size: 0.8rem; letter-spacing: 0.05em;">+ CREATE SUBJECT</button>
+                <div class="stats-pill">
+                    <span class="stats-label">Total Subjects</span>
+                    <span class="stats-value">{{ page_obj.paginator.count }}</span>
+                </div>
             </div>
         </div>
 
@@ -137,11 +161,9 @@
                 </thead>
                 <tbody>
                     {% for user in page_obj %}
-                    <tr id="user-row-{{ user.id }}">
+                    <tr id="user-row-{{ user.id }}" onclick="goToUser('{% url 'user_activity' user_id=user.id %}')">
                         <td>
-                            <a href="{% url 'user_activity' user_id=user.id %}" class="user-link" style="color: var(--text-main); font-weight: 700;">
-                                {{ user.username }}
-                            </a>
+                            <div style="color: var(--text-main); font-weight: 700;">{{ user.username }}</div>
                             <div style="font-size:0.75rem; color:var(--text-muted);">{{ user.email|default:"NO EMAIL" }}</div>
                         </td>
                         <td>
@@ -162,13 +184,7 @@
                         <td style="text-align:right; vertical-align: middle;">
                             <div style="display:flex; justify-content:flex-end; align-items:center; gap:8px;">
                                 {% if not user.is_superuser %}
-                                <button onclick="toggleStatus('{{ user.id|escapejs }}')" class="btn {% if user.is_active %}btn-warning{% else %}btn-success{% endif %}" id="toggle-btn-{{ user.id }}" style="min-width: 80px;">
-                                    {% if user.is_active %}Ban{% else %}Unban{% endif %}
-                                </button>
-                                <button onclick="openEditModal('{{ user.id|escapejs }}', '{{ user.username|escapejs }}', '{{ user.email|escapejs }}', '{{ user.profile.phone|default:''|escapejs }}', '{{ user.profile.searches_left|escapejs }}')" class="btn btn-outline" style="padding: 8px 12px; color: var(--primary);">Edit</button>
-                                <button onclick="openPackageModal('{{ user.id|escapejs }}', '{{ user.username|escapejs }}', '{{ user.profile.package.id|default:'' }}')" class="btn btn-outline" style="padding: 8px 12px; color: var(--success);">Tier</button>
-                                <button onclick="resetPassword('{{ user.id|escapejs }}')" class="btn btn-outline" style="padding: 8px 12px;">Reset</button>
-                                <button onclick="deleteUser(event, '{{ user.id|escapejs }}')" class="btn btn-danger">Purge</button>
+                                <button onclick="event.stopPropagation(); deleteUser(event, '{{ user.id|escapejs }}')" class="btn btn-danger">Purge</button>
                                 {% else %}
                                 <span style="font-size:0.65rem; color:var(--primary); font-weight:900; background: var(--primary-glow); padding: 4px 8px; border-radius: 4px;">ADMIN</span>
                                 {% endif %}
@@ -191,198 +207,97 @@
                 </div>
                 <div style="display: flex; gap: 8px;">
                     {% if page_obj.has_previous %}
-                        <a href="?page={{ page_obj.previous_page_number }}" class="btn btn-outline">Previous</a>
+                        <a href="?page={{ page_obj.previous_page_number }}" class="btn btn-outline" onclick="event.stopPropagation()">Previous</a>
                     {% endif %}
                     {% if page_obj.has_next %}
-                        <a href="?page={{ page_obj.next_page_number }}" class="btn btn-outline">Next Page</a>
+                        <a href="?page={{ page_obj.next_page_number }}" class="btn btn-outline" onclick="event.stopPropagation()">Next Page</a>
                     {% endif %}
                 </div>
             </div>
             {% endif %}
         </div>
-    <!-- Package Assignment Modal -->
-    <div id="pkg-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center; backdrop-filter:blur(4px);">
-        <div class="panel" style="width:400px; padding:32px; border: 1px solid var(--border);">
-            <h2 style="margin-bottom:8px; font-size:1.25rem;">Upgrade/Downgrade Tier</h2>
-            <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:24px;">Assign a new subscription package to <span id="pkg-user-name" style="color:var(--primary); font-weight:700;"></span></p>
-            
-            <div style="margin-bottom:24px;">
-                <label style="display:block; font-size:0.7rem; font-weight:800; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px; letter-spacing:0.05em;">Tier Selection</label>
-                <select id="pkg-select" style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text-main); padding:12px; border-radius:8px; font-family:'Outfit'; outline:none;">
-                    <option value="">FREE / FREELANCE (DEFAULT)</option>
-                    {% for pkg in packages %}
-                    <option value="{{ pkg.id }}">{{ pkg.name|upper }} (${{ pkg.price }})</option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div style="display:flex; gap:12px; margin-top:32px;">
-                <button onclick="closePackageModal()" class="btn btn-outline" style="flex:1;">Cancel Access</button>
-                <button onclick="submitPackageChange()" class="btn btn-success" style="flex:1;">Confirm Switch</button>
-            </div>
-        </div>
     </div>
 
-    <!-- Edit User Modal -->
-    <div id="edit-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center; backdrop-filter:blur(4px);">
-        <div class="panel" style="width:450px; padding:32px; border: 1px solid var(--border);">
-            <h2 style="margin-bottom:8px; font-size:1.25rem;">Edit Account Details</h2>
-            <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:24px;">Update information for <span id="edit-user-name-title" style="color:var(--primary); font-weight:700;"></span></p>
+    <!-- Create User Modal -->
+    <div id="createUserModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title">Initialize Subject</div>
+            <div class="modal-sub">Manually onboard a new operative to the system.</div>
             
-            <div style="margin-bottom:16px;">
-                <label style="display:block; font-size:0.7rem; font-weight:800; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px; letter-spacing:0.05em;">Username</label>
-                <input type="text" id="edit-username" style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text-main); padding:12px; border-radius:8px; font-family:'Outfit'; outline:none;">
-            </div>
-
-            <div style="margin-bottom:16px;">
-                <label style="display:block; font-size:0.7rem; font-weight:800; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px; letter-spacing:0.05em;">Email</label>
-                <input type="email" id="edit-email" style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text-main); padding:12px; border-radius:8px; font-family:'Outfit'; outline:none;">
-            </div>
-
-            <div style="margin-bottom:16px;">
-                <label style="display:block; font-size:0.7rem; font-weight:800; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px; letter-spacing:0.05em;">Phone Number</label>
-                <input type="text" id="edit-phone" style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text-main); padding:12px; border-radius:8px; font-family:'Outfit'; outline:none;">
-            </div>
-
-            <div style="margin-bottom:16px;">
-                <label style="display:block; font-size:0.7rem; font-weight:800; text-transform:uppercase; color:var(--text-muted); margin-bottom:8px; letter-spacing:0.05em;">Credits Left</label>
-                <input type="number" id="edit-credits" style="width:100%; background:var(--bg); border:1px solid var(--border); color:var(--text-main); padding:12px; border-radius:8px; font-family:'Outfit'; outline:none;">
-            </div>
-
-            <div style="display:flex; gap:12px; margin-top:32px;">
-                <button onclick="closeEditModal()" class="btn btn-outline" style="flex:1;">Cancel</button>
-                <button onclick="submitUserDetailsUpdate()" class="btn btn-primary" style="flex:1;">Save Details</button>
-            </div>
+            <form id="createUserForm">
+                <div class="form-group">
+                    <label class="form-label">IDENTITY_USERNAME</label>
+                    <input type="text" id="new_username" class="form-input" placeholder="agent_code" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">COMMUNICATION_EMAIL</label>
+                    <input type="email" id="new_email" class="form-input" placeholder="operative@hq.com" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">ACCESS_PASSWORD</label>
+                    <input type="password" id="new_password" class="form-input" placeholder="••••••••" required>
+                </div>
+                
+                <div style="display: flex; gap: 12px; margin-top: 32px;">
+                    <button type="button" onclick="closeModal()" class="btn btn-outline" style="flex: 1; padding: 14px;">Abort</button>
+                    <button type="submit" class="btn btn-success" style="flex: 2; padding: 14px;">Authorize Access</button>
+                </div>
+            </form>
         </div>
     </div>
 
     <script>
-        let currentUserId = null;
-
-        function openPackageModal(userId, username, packageId) {
-            currentUserId = userId;
-            document.getElementById('pkg-user-name').innerText = username;
-            document.getElementById('pkg-select').value = packageId || "";
-            document.getElementById('pkg-modal').style.display = 'flex';
+        function goToUser(url) {
+            window.location.href = url;
         }
 
-        function closePackageModal() {
-            document.getElementById('pkg-modal').style.display = 'none';
+        function openModal() {
+            document.getElementById('createUserModal').classList.add('active');
         }
 
-        function openEditModal(userId, username, email, phone, credits) {
-            currentUserId = userId;
-            document.getElementById('edit-user-name-title').innerText = username;
-            document.getElementById('edit-username').value = username;
-            document.getElementById('edit-email').value = email;
-            document.getElementById('edit-phone').value = phone;
-            document.getElementById('edit-credits').value = credits;
-            document.getElementById('edit-modal').style.display = 'flex';
+        function closeModal() {
+            document.getElementById('createUserModal').classList.remove('active');
         }
 
-        function closeEditModal() {
-            document.getElementById('edit-modal').style.display = 'none';
-        }
+        document.getElementById('createUserForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            const originalText = btn.innerText;
+            btn.innerText = 'Initializing...';
+            btn.disabled = true;
 
-        async function submitUserDetailsUpdate() {
-            const username = document.getElementById('edit-username').value;
-            const email = document.getElementById('edit-email').value;
-            const phone = document.getElementById('edit-phone').value;
-            const credits = document.getElementById('edit-credits').value;
+            const payload = {
+                username: document.getElementById('new_username').value,
+                email: document.getElementById('new_email').value,
+                password: document.getElementById('new_password').value
+            };
 
-            // 1. Update Details
-            const res1 = await fetch(`/omega-hq/users/update-details/${currentUserId}/`, {
-                method: 'POST',
-                headers: { 
-                    'X-CSRFToken': '{{ csrf_token }}',
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ username, email, phone })
-            });
-            const data1 = await res1.json();
-
-            // 2. Update Credits
-            const res2 = await fetch(`/omega-hq/users/update-credits/${currentUserId}/`, {
-                method: 'POST',
-                headers: { 
-                    'X-CSRFToken': '{{ csrf_token }}',
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ credits })
-            });
-
-            if(data1.success) {
-                alert('Account details updated successfully');
-                location.reload();
-            } else {
-                alert(data1.error || 'Update failed');
-            }
-        }
-
-        async function submitPackageChange() {
-            const pkgId = document.getElementById('pkg-select').value;
-            const res = await fetch(`/omega-hq/users/assign-package/${currentUserId}/`, {
-                method: 'POST',
-                headers: { 
-                    'X-CSRFToken': '{{ csrf_token }}',
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ package_id: pkgId })
-            });
-            const data = await res.json();
-            if(data.success) {
-                alert(data.msg);
-                location.reload(); // Hard reload to update all tier labels
-            } else {
-                alert(data.error);
-            }
-        }
-
-        async function resetPassword(userId) {
-            const newPassword = prompt('Enter NEW password for this subject:');
-            if(!newPassword) return;
-            
-            const res = await fetch(`/omega-hq/users/reset/${userId}/`, {
-                method: 'POST',
-                headers: { 
-                    'X-CSRFToken': '{{ csrf_token }}',
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ password: newPassword })
-            });
-            const data = await res.json();
-            if(data.success) {
-                alert(data.msg);
-            } else {
-                alert(data.error);
-            }
-        }
-
-        async function toggleStatus(userId) {
-            if(!confirm('Change user operative status?')) return;
-            const res = await fetch(`/omega-hq/users/toggle/${userId}/`, {
-                method: 'POST',
-                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
-            });
-            const data = await res.json();
-            if(data.success) {
-                const pill = document.getElementById(`status-pill-${userId}`);
-                const btn = document.getElementById(`toggle-btn-${userId}`);
-                if(data.is_active) {
-                    pill.className = 'pill pill-active';
-                    pill.innerText = 'Active';
-                    btn.className = 'btn btn-warning';
-                    btn.innerText = 'Ban';
+            try {
+                const res = await fetch('{% url 'create_user_admin' %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                const data = await res.json();
+                if (data.success) {
+                    location.reload();
                 } else {
-                    pill.className = 'pill pill-banned';
-                    pill.innerText = 'Banned';
-                    btn.className = 'btn btn-success';
-                    btn.innerText = 'Unban';
+                    alert('Error: ' + data.error);
                 }
+            } catch (err) {
+                alert('Connection Error: ' + err.message);
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
             }
-        }
+        };
 
         async function deleteUser(event, userId) {
+            event.stopPropagation();
             if(!confirm('Purge all data for this subject? This action is irreversible.')) return;
             
             const btn = event.target;
@@ -413,7 +328,6 @@
                 if(data.success) {
                     const row = document.getElementById(`user-row-${userId}`);
                     if (row) row.remove();
-                    // Optional: show a mini toast or alert
                 } else {
                     alert(data.error || 'Purge protocol failed.');
                     btn.innerText = originalText;

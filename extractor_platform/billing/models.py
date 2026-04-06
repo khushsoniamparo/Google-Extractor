@@ -15,6 +15,20 @@ class PaymentGatewaySettings(models.Model):
     paypal_client_secret = models.CharField(max_length=255, blank=True, null=True)
     paypal_mode = models.CharField(max_length=20, choices=[('sandbox', 'Sandbox'), ('live', 'Live')], default='sandbox')
     
+    # Paytm
+    paytm_mid = models.CharField(max_length=255, blank=True, null=True)
+    paytm_merchant_key = models.CharField(max_length=255, blank=True, null=True)
+    paytm_website = models.CharField(max_length=100, default='DEFAULT', blank=True, null=True)
+    paytm_industry_type_id = models.CharField(max_length=100, default='Retail', blank=True, null=True)
+    
+    # SMTP
+    smtp_host = models.CharField(max_length=255, default='smtp.gmail.com', blank=True, null=True)
+    smtp_port = models.IntegerField(default=587)
+    smtp_user = models.CharField(max_length=255, blank=True, null=True)
+    smtp_password = models.CharField(max_length=255, blank=True, null=True)
+    smtp_use_tls = models.BooleanField(default=True)
+    smtp_use_ssl = models.BooleanField(default=False)
+    
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
