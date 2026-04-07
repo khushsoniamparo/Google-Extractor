@@ -100,11 +100,17 @@ async def search_grid_cell(browser, cell, keyword, proxy_url=None):
     zoom = getattr(cell, 'zoom', 14)
     url = f"https://www.google.com/maps/search/{quote(query)}/@{cell.center_lat},{cell.center_lng},{zoom}z"
 
-    context = await browser.new_context(
-        viewport={'width': 1280, 'height': 800},
-        user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-    )
-    if proxy_url: await context.set_extra_http_headers({"X-Proxy": proxy_url}) # Some proxies like this
+    # Prepare context options
+    context_options = {
+        'viewport': {'width': 1280, 'height': 800},
+        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+    }
+    
+    # Properly attach proxy to the browser context
+    if proxy_url:
+        context_options['proxy'] = {'server': proxy_url}
+
+    context = await browser.new_context(**context_options)
 
     # Optimize: Block images/styles
     await context.route("**/*.{png,jpg,jpeg,gif,webp,svg,woff,woff2,ttf,otf,css}", lambda r: r.abort())

@@ -104,6 +104,31 @@
     </div>
 </div>
 
+<!-- Configuration Modal for Export Fields -->
+<div id="field-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:3000; justify-content:center; align-items:center; backdrop-filter:blur(8px);">
+    <div style="background:var(--card-bg); border:1px solid var(--border); border-radius:20px; width:100%; max-width:600px; padding: 24px; box-shadow: var(--shadow-lg);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2 style="margin:0; font-size: 1.3rem; font-weight: 850; letter-spacing: -0.03em;">Configure Export Fields</h2>
+            <button class="btn" onclick="document.getElementById('field-modal').style.display='none'" style="padding: 6px 14px; border-radius: 20px; background: var(--bg-color); color: var(--text-main); border: 1px solid var(--border); font-weight: 700; font-size: 0.7rem;">Close</button>
+        </div>
+        
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 16px;">Select the data points you want to include in your CSV/JSON export.</p>
+        
+        <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+            <button class="btn btn-secondary" onclick="selectAllFields(true)" style="font-size:0.7rem; padding: 6px 12px;">Select All</button>
+            <button class="btn btn-secondary" onclick="selectAllFields(false)" style="font-size:0.7rem; padding: 6px 12px;">Clear All</button>
+        </div>
+
+        <div id="field-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; max-height: 400px; overflow-y: auto; padding-right: 8px;">
+            <!-- Fields populated by JS -->
+        </div>
+
+        <div style="margin-top: 24px; text-align: right;">
+            <button class="btn btn-blue" onclick="document.getElementById('field-modal').style.display='none'" style="padding: 10px 24px; font-weight: 700;">Apply Settings</button>
+        </div>
+    </div>
+</div>
+
 <style>
 .pay-option:hover { background: white; border-color: #3b82f6 !important; transform: translateY(-2px); }
 .active-method { box-shadow: 0 10px 30px rgba(59, 130, 246, 0.1); }

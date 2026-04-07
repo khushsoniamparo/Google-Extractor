@@ -433,19 +433,23 @@ let resendInterval = null;
 let confirmationResult = null; // Firebase storage
 let otpMethod = 'sms';
 
-// Initialize Firebase (User should replace these with their own config)
+// Initialize Firebase (Updated with new project credentials)
 const firebaseConfig = {
-    apiKey: "AIzaSyAMNsEB_nZXWaOFK5FaU0xGrT7kbLWRVy4",
-    authDomain: "map-extractor-bd212.firebaseapp.com",
-    projectId: "map-extractor-bd212",
-    storageBucket: "map-extractor-bd212.firebasestorage.app",
-    messagingSenderId: "785485348907",
-    appId: "1:785485348907:web:70eb7df01866a19bfb2a6e"
+    apiKey: "AIzaSyC5ak1DauXLK5YOLLCPUKptyoqG__M3e9g",
+    authDomain: "sm-scraper-5906a.firebaseapp.com",
+    projectId: "sm-scraper-5906a",
+    storageBucket: "sm-scraper-5906a.firebasestorage.app",
+    messagingSenderId: "74170539248",
+    appId: "1:74170539248:web:89023bdac1bb29a64c7635",
+    measurementId: "G-NSR9SHR9DR"
 };
 
 try {
-    if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
+    if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "YOUR_API_KEY") {
         firebase.initializeApp(firebaseConfig);
+        if (firebaseConfig.measurementId) {
+            try { firebase.analytics(); } catch (e) { console.warn("Analytics not loaded:", e); }
+        }
     }
 } catch (e) { console.error("Firebase init failed:", e); }
 
@@ -1679,15 +1683,15 @@ window.viewJobResults = async (id, keyword, location, isBulk = false) => {
         availableFields = Array.from(fieldSet).sort();
 
         // Initialize selection with priority fields (Name and ANY address variant)
-        const commonFields = ['name', 'full_address', 'address', 'phone', 'rating', 'reviews_count'];
+        const commonFields = ['name', 'full_address', 'address', 'phone', 'rating', 'reviews_count', 'street', 'city', 'country_code', 'website'];
         availableFields.forEach(f => {
             if (commonFields.includes(f)) selectedFields.add(f);
         });
 
-        // Remove website/rating from default if user feels it's unnecessary (as per feedback)
-        // We'll keep Rating but remove Website as it's the "last section" usually
-        selectedFields.delete('website');
-        selectedFields.delete('reviews_count');
+        // Fallback: If no priority fields found, select first 7 available
+        if (selectedFields.size === 0 && availableFields.length > 0) {
+            availableFields.slice(0, 7).forEach(f => selectedFields.add(f));
+        }
 
         renderTable();
         renderFieldList();
@@ -1703,6 +1707,7 @@ let currentResultTab = 'overview';
 const fieldLabels = {
     'name': { title: 'Place name', sub: 'title' },
     'rating': { title: 'Total Score', sub: 'totalScore' },
+    'review_count': { title: 'Reviews Count', sub: 'reviewsCount' },
     'reviews_count': { title: 'Reviews Count', sub: 'reviewsCount' },
     'full_address': { title: 'Address', sub: 'fullAddress' },
     'street': { title: 'Street', sub: 'street' },
@@ -1860,10 +1865,13 @@ if (dlCsvBtn) {
     dlCsvBtn.onclick = () => {
         if (currentDetailResults.length === 0) return alert("Nothing to export");
         const fields = availableFields.filter(f => selectedFields.has(f));
+        // Fallback if no fields selected
+        const exportFields = fields.length > 0 ? fields : availableFields;
+
         // Add BOM for Excel compatibility (\uFEFF)
-        const header = "\uFEFF" + fields.join(',');
+        const header = "\uFEFF" + exportFields.join(',');
         const rows = currentDetailResults.map(row => {
-            return fields.map(f => {
+            return exportFields.map(f => {
                 const v = row[f] || '';
                 return `"${String(v).replace(/"/g, '""')}"`;
             }).join(',');
@@ -1886,9 +1894,11 @@ if (dlJsonBtn) {
     dlJsonBtn.onclick = () => {
         if (currentDetailResults.length === 0) return alert("Nothing to export");
         const fields = availableFields.filter(f => selectedFields.has(f));
+        // Fallback if no fields selected
+        const exportFields = fields.length > 0 ? fields : availableFields;
         const filtered = currentDetailResults.map(row => {
             const obj = {};
-            fields.forEach(f => obj[f] = row[f]);
+            exportFields.forEach(f => obj[f] = row[f]);
             return obj;
         });
 
@@ -1903,6 +1913,52 @@ if (dlJsonBtn) {
     };
 }
 
+// --- Preview Logic ---
+window.previewAsTable = () => {
+    if (currentDetailResults.length === 0) return alert("Nothing to preview");
+    const fields = availableFields.filter(f => selectedFields.has(f));
+    const previewFields = fields.length > 0 ? fields : availableFields;
+
+    const win = window.open('', '_blank');
+    let html = `<html><head><title>Data Preview</title>
+        <style>
+            body { font-family: 'Inter', sans-serif; padding: 40px; color: #1e293b; background: #f8fafc; }
+            table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+            th { background: #0f172a; color: white; text-align: left; padding: 12px 16px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+            td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 0.85rem; }
+            tr:last-child td { border-bottom: none; }
+            tr:hover { background: #f1f5f9; }
+        </style>
+    </head><body>`;
+    html += `<h2>Dataset Preview (${currentDetailResults.length} records)</h2>`;
+    html += '<table><thead><tr><th>#</th>';
+    previewFields.forEach(f => html += `<th>${f.replace(/_/g, ' ')}</th>`);
+    html += '</tr></thead><tbody>';
+    currentDetailResults.forEach((row, idx) => {
+        html += `<tr><td>${idx + 1}</td>`;
+        previewFields.forEach(f => html += `<td>${row[f] || '-'}</td>`);
+        html += '</tr>';
+    });
+    html += '</tbody></table></body></html>';
+    win.document.write(html);
+    win.document.close();
+};
+
+window.previewAsJson = () => {
+    if (currentDetailResults.length === 0) return alert("Nothing to preview");
+    const fields = availableFields.filter(f => selectedFields.has(f));
+    const previewFields = fields.length > 0 ? fields : availableFields;
+    const filtered = currentDetailResults.map(row => {
+        const obj = {};
+        previewFields.forEach(f => obj[f] = row[f]);
+        return obj;
+    });
+
+    const win = window.open('', '_blank');
+    win.document.write(`<html><head><title>JSON Preview</title></head><body><pre style="background:#0f172a; color:#38bdf8; padding:20px; border-radius:8px; font-size:0.9rem;">${JSON.stringify(filtered, null, 2)}</pre></body></html>`);
+    win.document.close();
+};
+
 const gdriveBtn = document.getElementById('save-gdrive-btn');
 if (gdriveBtn) {
     gdriveBtn.onclick = async () => {
@@ -1910,9 +1966,12 @@ if (gdriveBtn) {
         
         // Generate CSV content for Drive upload
         const fields = availableFields.filter(f => selectedFields.has(f));
-        const csvRows = [fields.join(',')];
+        // Fallback if no fields selected
+        const exportFields = fields.length > 0 ? fields : availableFields;
+
+        const csvRows = [exportFields.join(',')];
         currentDetailResults.forEach(row => {
-            const vals = fields.map(f => {
+            const vals = exportFields.map(f => {
                 const v = row[f] || '';
                 return `"${String(v).replace(/"/g, '""')}"`;
             });
